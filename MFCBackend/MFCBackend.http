@@ -1,0 +1,6 @@
+@MFCBackend_HostAddress = http://localhost:5277
+
+GET {{MFCBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

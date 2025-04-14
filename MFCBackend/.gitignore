@@ -1,0 +1,42 @@
+# Thư mục bin và obj
+bin/
+obj/
+
+# Tệp tạm thời
+*.tmp
+*.temp
+
+# Tệp log
+*.log
+
+# Tệp cấu hình người dùng
+*.user
+*.suo
+
+# Tệp khóa
+*.pfx
+*.snk
+
+# Tệp dựng
+*.dll
+*.exe
+*.pdb
+
+# Tệp tạm thời của Visual Studio
+.vs/
+.vscode/
+
+# Tệp dựng của Rider
+.idea/
+
+# Tệp dựng của Resharper
+_ReSharper*/
+
+# Tệp dựng của Mac
+*.DS_Store
+
+# Tệp dựng của Windows
+Thumbs.db
+
+# Tệp dựng của hệ điều hành
+*.swp 
