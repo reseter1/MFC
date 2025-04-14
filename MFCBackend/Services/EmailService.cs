@@ -73,6 +73,12 @@ namespace MFCBackend.Services
                       padding: 25px 20px;
                       text-align: center;
                     }}
+                    .logo {{
+                      margin: 0 auto 20px;
+                      display: block;
+                      width: 80px;
+                      height: 80px;
+                    }}
                     .welcome-text {{
                       font-size: 16px;
                       margin-bottom: 20px;
@@ -116,12 +122,12 @@ namespace MFCBackend.Services
                       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
                     }}
                     .footer {{
-                      background-color: #f8f8f8;
+                      background-color: #000000;
                       padding: 15px;
                       text-align: center;
                       font-size: 13px;
-                      color: #666666;
-                      border-top: 1px solid #eeeeee;
+                      color: #ffffff;
+                      border-top: 1px solid #333333;
                     }}
                     @media only screen and (max-width: 500px) {{
                       .container {{
@@ -147,6 +153,7 @@ namespace MFCBackend.Services
                             <h1>Kích Hoạt Tài Khoản</h1>
                           </div>
                           <div class='content'>
+                            <img src='https://openfxt.vercel.app/images/favicon.png' class='logo' alt='Logo'>
                             <p class='welcome-text'>Xin chào, <span class='username' id='username'>{username}</span>!</p>
                             <p class='instructions'>
                               Cảm ơn bạn đã đăng ký tài khoản nền tảng {_appInfo.Name}. Để bắt đầu sử dụng tài khoản, 

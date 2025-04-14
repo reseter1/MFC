@@ -40,3 +40,7 @@ Thumbs.db
 
 # Tệp dựng của hệ điều hành
 *.swp 
+
+appsettings.json
+
+Migrations/
