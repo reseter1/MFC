@@ -36,9 +36,9 @@ namespace MFCBackend.Repositories
             return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
         }
 
-        public async Task<User?> GetUserByUsername(string username)
+        public async Task<User?> GetUserByEmail(string email)
         {
-            return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task<User?> UpdateSignInStatus(User user, bool isSignedIn)

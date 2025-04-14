@@ -1,13 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MFCBackend.Models 
+namespace MFCBackend.Models
 {
-    public class UserSignInDto
+    public class ForgotPasswordDto
     {
         [Required]
         [EmailAddress]
         public required string Email { get; set; }
-        [Required]
-        public required string Password { get; set; }
-    }   
+    }
 }

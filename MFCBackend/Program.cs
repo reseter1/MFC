@@ -16,6 +16,16 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(builder.Configuration.GetSection("FrontendSettings:Url").Value!)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add(new ValidateModelStateFilter());
@@ -93,7 +103,10 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<JWTRepository>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<AppInfo>(builder.Configuration.GetSection("AppInfo"));
+builder.Services.Configure<FrontendSettings>(builder.Configuration.GetSection("FrontendSettings"));
 var app = builder.Build();
+
+app.UseCors("AllowFrontend");
 
 app.UseRouting();
 app.UseAuthentication();
