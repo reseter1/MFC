@@ -104,6 +104,7 @@ builder.Services.AddScoped<JWTRepository>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<AppInfo>(builder.Configuration.GetSection("AppInfo"));
 builder.Services.Configure<FrontendSettings>(builder.Configuration.GetSection("FrontendSettings"));
+builder.Services.Configure<GoogleSettings>(builder.Configuration.GetSection("GoogleSettings"));
 var app = builder.Build();
 
 app.UseCors("AllowFrontend");

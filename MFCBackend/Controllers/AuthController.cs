@@ -10,6 +10,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Text.Json;
+using System.Net.Http;
+using System.Net.Http.Headers;
 namespace MFCBackend.Controllers
 {
     [ApiController]
@@ -22,7 +25,10 @@ namespace MFCBackend.Controllers
         private readonly IJwtTokenService _jwtTokenService;
         private readonly JWTRepository _jwtRepository;
         private readonly FrontendSettings _frontendSettings;
-        public AuthController(ApplicationDbContext context, IEmailService emailService, UserRepository userRepository, IJwtTokenService jwtTokenService, JWTRepository jwtRepository, IOptions<FrontendSettings> frontendSettings)
+        private readonly GoogleSettings _googleSettings;
+
+
+        public AuthController(ApplicationDbContext context, IEmailService emailService, UserRepository userRepository, IJwtTokenService jwtTokenService, JWTRepository jwtRepository, IOptions<FrontendSettings> frontendSettings, IOptions<GoogleSettings> googleSettings)
         {
             _context = context;
             _emailService = emailService;
@@ -30,6 +36,103 @@ namespace MFCBackend.Controllers
             _jwtTokenService = jwtTokenService;
             _jwtRepository = jwtRepository;
             _frontendSettings = frontendSettings.Value;
+            _googleSettings = googleSettings.Value;
+        }
+
+        [HttpPost("google-auth")]
+        public async Task<IActionResult> GoogleSignIn([FromBody] GoogleAuthDto googleAuthDto)
+        {
+            var clientId = _googleSettings.ClientId;
+            var clientSecret = _googleSettings.ClientSecret;
+            var code = googleAuthDto.Code;
+            
+            var redirectUri = _frontendSettings.Url + "/sign-in";
+
+            var tokenRequestUri = "https://oauth2.googleapis.com/token";
+            var tokenRequestBody = new Dictionary<string, string>
+            {
+                { "code", code },
+                { "client_id", clientId },
+                { "client_secret", clientSecret },
+                { "redirect_uri", redirectUri },
+                { "grant_type", "authorization_code" },
+                { "access_type", "offline" }
+            };
+
+            using (var httpClient = new HttpClient())
+            {
+                var tokenResponse = await httpClient.PostAsync(tokenRequestUri, new FormUrlEncodedContent(tokenRequestBody));
+                if (!tokenResponse.IsSuccessStatusCode)
+                {
+                    var errorContent = await tokenResponse.Content.ReadAsStringAsync();
+                    return BadRequest(new { success = false, message = $"Xác thực Google thất bại: {errorContent}" });
+                }
+
+                var tokenResponseContent = await tokenResponse.Content.ReadAsStringAsync();
+                var tokenData = JsonSerializer.Deserialize<JsonDocument>(tokenResponseContent);
+                if (tokenData == null || !tokenData.RootElement.TryGetProperty("access_token", out var accessTokenElement))
+                {
+                    return BadRequest(new { success = false, message = "Xác thực Google thất bại." });
+                }
+
+                var accessToken = accessTokenElement.GetString();
+                var userInfoUri = "https://www.googleapis.com/oauth2/v3/userinfo";
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var userInfoResponse = await httpClient.GetAsync(userInfoUri);
+                
+                if (!userInfoResponse.IsSuccessStatusCode)
+                {
+                    var errorContent = await userInfoResponse.Content.ReadAsStringAsync();
+                    return BadRequest(new { success = false, message = $"Xác thực Google thất bại: {errorContent}" });
+                }
+                
+                var userInfoContent = await userInfoResponse.Content.ReadAsStringAsync();
+                var userData = JsonSerializer.Deserialize<JsonDocument>(userInfoContent);
+                
+                if (userData == null)
+                {
+                    return BadRequest(new { success = false, message = "Xác thực Google thất bại." });
+                }
+                
+                string email = null;
+                string name = null;
+                
+                if (userData.RootElement.TryGetProperty("email", out var emailElement))
+                {
+                    email = emailElement.GetString();
+                }
+                
+                if (userData.RootElement.TryGetProperty("name", out var nameElement))
+                {
+                    name = nameElement.GetString();
+                }
+
+                var randomString = new string(Enumerable.Repeat("abcdefghijklmnopqrstuvwxyz", 15)
+                    .Select(s => s[new Random().Next(s.Length)]).ToArray());
+                
+                var user = await _userRepository.GetUserByEmail(email);
+                if (user == null) {
+                    user = new User
+                    {
+                        Username = "googleuser" + randomString,
+                        Email = email,
+                        PasswordHash = "",
+                        IsVerified = true,
+                        DisplayName = name,
+                    };
+                    _context.Users.Add(user);
+                    await _context.SaveChangesAsync();
+                }
+
+                if (user.IsActive) {
+                   var token = _jwtTokenService.GenerateToken(user);
+                   await _userRepository.UpdateSignInStatus(user, true);
+                   await _jwtRepository.AddJWTAsync(token);
+                   return Ok(new { success = true, message = "Đăng nhập thành công.", token = token });
+                } else {
+                    return BadRequest(new { success = false, message = "Tài khoản này đã bị khóa. Vui lòng liên hệ quản trị viên để biết thêm thông tin." });
+                }
+            }
         }
 
         [HttpPost("sign-in")]
@@ -53,10 +156,14 @@ namespace MFCBackend.Controllers
                 return BadRequest(new { success = false, message = "Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để kích hoạt tài khoản." });
             }   
             
-            var token = _jwtTokenService.GenerateToken(user);
-            await _userRepository.UpdateSignInStatus(user, true);
-            await _jwtRepository.AddJWTAsync(token);
-            return Ok(new { success = true, message = "Đăng nhập thành công.", token = token });
+            if (user.IsActive) {
+                var token = _jwtTokenService.GenerateToken(user);
+                await _userRepository.UpdateSignInStatus(user, true);
+                await _jwtRepository.AddJWTAsync(token);
+                return Ok(new { success = true, message = "Đăng nhập thành công.", token = token });
+            } else {
+                return BadRequest(new { success = false, message = "Tài khoản này đã bị khóa. Vui lòng liên hệ quản trị viên để biết thêm thông tin." });
+            }
         }
 
         [HttpPost("sign-up")]

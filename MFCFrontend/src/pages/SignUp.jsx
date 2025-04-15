@@ -66,7 +66,7 @@ export default function SignUp() {
             const data = await response.json()
             setMessage(data.message)
         } catch (error) {
-            addToast("Lỗi kết nối đến máy chủ", "error")
+            addToast("Lỗi kết nối đến máy chủ " + error, "error")
         } finally {
             setIsLoading(false)
         }

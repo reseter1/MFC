@@ -1,7 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { LogIn, Loader2 } from "lucide-react"
 import { APP_NAME, APP_VERSION } from "../data/constant"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { useToast } from "../components/ToastProvider"
 import { API_URL } from "../data/constant"
 import { useAuth } from "../hooks/useAuth"
@@ -13,6 +13,45 @@ export default function SignIn() {
     const [isLoading, setIsLoading] = useState(false)
     const navigate = useNavigate()
     const { loginUser } = useAuth()
+    const [searchParams] = useSearchParams()
+    const code = searchParams.get('code')
+    const authCallbackRef = useRef(false)
+
+    useEffect(() => {
+        if (code && !authCallbackRef.current) {
+            authCallbackRef.current = true;
+            handleGoogleCallback(code);
+        }
+    }, [code]);
+
+    const handleGoogleCallback = async (code) => {
+        try {
+            setIsLoading(true);
+            const response = await fetch(`${API_URL}/google-auth`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    Code: code
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                loginUser(data.token)
+                addToast("Đăng nhập thành công", "success")
+                navigate("/")
+            } else {
+                addToast(data.message, "error");
+            }
+        } catch (error) {
+            addToast("Lỗi kết nối đến máy chủ " + error, "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (email === "" || password === "") {
@@ -39,14 +78,21 @@ export default function SignIn() {
                 addToast(data.message, "error")
             }
         } catch (error) {
-            addToast("Lỗi kết nối đến máy chủ", "error")
+            addToast("Lỗi kết nối đến máy chủ " + error, "error")
         } finally {
             setIsLoading(false)
         }
     }
 
     const handleGoogleLogin = () => {
-        console.log("Google login initiated")
+        if (isLoading) return
+
+        const clientId = "307540486543-9ph8q9goevqjb9lc97ivkjqdbhkejt46.apps.googleusercontent.com"
+        const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname)
+        const scope = encodeURIComponent("email profile openid")
+        const responseType = "code"
+        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${scope}&access_type=offline&prompt=consent`
+        window.location.href = googleAuthUrl
     }
 
     return (
@@ -126,7 +172,7 @@ export default function SignIn() {
                         type="button"
                         onClick={handleGoogleLogin}
                         disabled={isLoading}
-                        className="flex w-full items-center justify-center rounded-md border border-gray-300 bg-white py-2 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 hover:scale-[1.02] animate-fade-in-up"
+                        className={`flex w-full items-center justify-center rounded-md border border-gray-300 bg-white py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:scale-[1.02] animate-fade-in-up ${isLoading ? 'text-gray-400 cursor-not-allowed opacity-75' : 'text-gray-900 focus:ring-gray-500'}`}
                     >
                         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                             <path
