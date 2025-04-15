@@ -11,7 +11,6 @@ import Home from './pages/Home';
 import ProtectedRoute from './components/ProtectedRoute';
 import RedirectHome from './components/RedirectHome';
 import Logout from './pages/Logout';
-
 function App() {
   useEffect(() => {
     document.title = `Reseter | ${APP_NAME}`
