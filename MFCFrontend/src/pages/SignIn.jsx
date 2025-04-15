@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { useToast } from "../components/ToastProvider"
 import { API_URL } from "../data/constant"
 import { useAuth } from "../hooks/useAuth"
+import { motion } from "framer-motion"
 
 export default function SignIn() {
     const { addToast } = useToast()
@@ -96,21 +97,61 @@ export default function SignIn() {
     }
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-white p-4">
-            <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm animate-fade-in-up">
-                <div className="mb-6 flex flex-col items-center">
-                    <div className="relative h-16 w-16 mb-4 animate-bounce">
+        <motion.main
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="flex min-h-screen items-center justify-center bg-white p-4"
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm"
+            >
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="mb-6 flex flex-col items-center"
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.3 }}
+                        className="relative h-16 w-16 mb-4"
+                    >
                         <img
                             src="https://openfxt.vercel.app/images/favicon.png"
                             alt="Logo"
                             className="w-full h-full object-contain"
                         />
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900 animate-fade-in">{APP_NAME} v{APP_VERSION}</h1>
-                    <p className="text-sm text-gray-500 animate-fade-in">Đăng nhập vào tài khoản của bạn</p>
-                </div>
+                    </motion.div>
+                    <motion.h1
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                        className="text-2xl font-bold text-gray-900"
+                    >
+                        {APP_NAME} v{APP_VERSION}
+                    </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, delay: 0.5 }}
+                        className="text-sm text-gray-500"
+                    >
+                        Đăng nhập vào tài khoản của bạn
+                    </motion.p>
+                </motion.div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <motion.form
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.6 }}
+                    onSubmit={handleSubmit}
+                    className="space-y-4"
+                >
                     <div className="space-y-2 animate-fade-in-up">
                         <label htmlFor="email" className="block text-sm font-medium text-gray-900">
                             Email
@@ -195,15 +236,20 @@ export default function SignIn() {
                         </svg>
                         Đăng nhập với Google
                     </button>
-                </form>
+                </motion.form>
 
-                <div className="mt-6 text-center text-sm animate-fade-in-up">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.7 }}
+                    className="mt-6 text-center text-sm"
+                >
                     <span className="text-gray-500">Bạn chưa có tài khoản?</span>{" "}
                     <a className={`${isLoading ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 cursor-pointer hover:text-black'} font-medium transition-colors duration-200`} onClick={() => !isLoading && navigate("/sign-up")}>
                         Đăng ký
                     </a>
-                </div>
-            </div>
-        </main>
+                </motion.div>
+            </motion.div>
+        </motion.main>
     )
 }
