@@ -163,14 +163,14 @@ const Home = () => {
                         transform transition-transform duration-300 ease-in-out
                         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
                         md:${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-                        shadow-md flex flex-col
+                        shadow-md flex flex-col overflow-hidden
                     `}
                 >
                     <div className="flex-1 overflow-y-auto">
                         <div className="relative" ref={modelSelectorRef}>
                             <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
+                                whileHover={{ filter: "brightness(0.98)" }}
+                                whileTap={{ filter: "brightness(0.95)" }}
                                 className="w-full bg-white rounded-md px-3 py-1.5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors duration-200 border border-gray-200 text-sm"
                                 onClick={() => setModelSelectorOpen(!modelSelectorOpen)}
                             >
@@ -224,8 +224,8 @@ const Home = () => {
                         </div>
 
                         <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ filter: "brightness(0.98)" }}
+                            whileTap={{ filter: "brightness(0.95)" }}
                             className="mt-2 w-full flex items-center justify-start px-3 py-1.5 bg-white rounded-md hover:bg-gray-50 transition-colors duration-200 border border-gray-200 text-sm"
                         >
                             <Plus className="mr-1.5 h-3.5 w-3.5" />
