@@ -80,3 +80,29 @@
     border: 2px solid transparent;
     background-clip: padding-box;
 }
+
+/* Ẩn thanh cuộn nhưng vẫn giữ chức năng cuộn */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE và Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+textarea.align-middle {
+    display: flex;
+    align-items: center;
+    line-height: normal;
+    padding-top: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+}
+
+textarea.align-middle::placeholder {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    line-height: normal;
+    text-align: left;
+}

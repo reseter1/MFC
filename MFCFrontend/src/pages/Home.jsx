@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { Plus, Settings, LogOut, UserPlus, Menu, X, Send, Paperclip } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileListItem from "../components/FileListItem";
-import { APP_NAME, APP_VERSION, PROVIDER_URL } from "../data/constant";
+import { APP_NAME, APP_VERSION, PROVIDER_URL, API_URL_GENAI } from "../data/constant";
+import NewChat from "../components/NewChat";
+import ChatContent from "../components/ChatContent";
 
 const Home = () => {
     const [message, setMessage] = useState("");
@@ -13,6 +15,7 @@ const Home = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [selectedChat, setSelectedChat] = useState(null);
+    const [models, setModels] = useState([]);
 
     const userMenuRef = useRef(null);
     const modelSelectorRef = useRef(null);
@@ -50,6 +53,31 @@ const Home = () => {
         return () => {
             window.removeEventListener("resize", handleResize);
         };
+    }, []);
+
+    useEffect(() => {
+        const fetchModels = async () => {
+            try {
+                const response = await fetch(`${API_URL_GENAI}/admin/get-models`);
+                const data = await response.json();
+
+                if (data.success) {
+                    setModels(data.data);
+                    if (data.data.length > 0) {
+                        setSelectedModel(data.data[0].name);
+                    }
+                } else {
+                    setModels([{ name: 'NaN', value: 'nan', description: data.message || 'Lỗi khi lấy danh sách model' }]);
+                    setSelectedModel('NaN');
+                }
+            } catch (error) {
+                const errorMessage = 'Không thể kết nối đến server để lấy danh sách model';
+                setModels([{ name: 'NaN', value: 'nan', description: errorMessage }]);
+                setSelectedModel('NaN');
+            }
+        };
+
+        fetchModels();
     }, []);
 
     return (
@@ -198,26 +226,27 @@ const Home = () => {
                                         >
                                             <div className="py-1">
                                                 <div className="px-3 py-0.5 text-xs text-gray-500">Mô hình AI</div>
-                                                <motion.button
-                                                    whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                                                    className="flex items-center w-full px-3 py-1.5 text-left hover:bg-gray-100 transition-colors duration-150"
-                                                    onClick={() => {
-                                                        setSelectedModel("NULL Flash");
-                                                        setModelSelectorOpen(false);
-                                                    }}
-                                                >
-                                                    NULL Flash
-                                                </motion.button>
-                                                <motion.button
-                                                    whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                                                    className="flex items-center w-full px-3 py-1.5 text-left hover:bg-gray-100 transition-colors duration-150"
-                                                    onClick={() => {
-                                                        setSelectedModel("NULL Pro");
-                                                        setModelSelectorOpen(false);
-                                                    }}
-                                                >
-                                                    NULL Pro
-                                                </motion.button>
+                                                {models.map((model, index) => (
+                                                    <motion.div
+                                                        key={model.value}
+                                                        className="relative"
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: index * 0.05 }}
+                                                    >
+                                                        <motion.button
+                                                            whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+                                                            className="flex items-center w-full px-3 py-1.5 text-left hover:bg-gray-100 transition-colors duration-150 model-item"
+                                                            onClick={() => {
+                                                                setSelectedModel(model.name);
+                                                                setModelSelectorOpen(false);
+                                                            }}
+                                                            title={model.description}
+                                                        >
+                                                            {model.name}
+                                                        </motion.button>
+                                                    </motion.div>
+                                                ))}
                                             </div>
                                         </motion.div>
                                     )}
@@ -313,57 +342,53 @@ const Home = () => {
                         ${sidebarOpen && !isMobile ? "md:ml-64" : "ml-0"}
                     `}
                 >
-                    <div className="flex-1 overflow-auto p-4 flex items-center justify-center">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="text-center"
-                        >
-                            <motion.img
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.8, delay: 0.2 }}
-                                src="https://openfxt.vercel.app/images/favicon.png"
-                                alt="Logo"
-                                className="mx-auto h-16 w-16 mb-4"
-                            />
-                            <h2 className="text-2xl font-bold mb-3 text-gray-900">Tôi có thể giúp gì cho bạn?</h2>
-                            <p className="text-sm text-gray-500 mt-2">
-                                <b>{APP_NAME}</b> có thể mắc lỗi, <b>{APP_NAME}</b>, một sản phẩm của Reseter (<b>{PROVIDER_URL}</b>)
-                            </p>
-                        </motion.div>
-                    </div>
+                    {selectedChat ? <ChatContent /> : <NewChat />}
 
-                    <div className="p-4">
-                        <div className="relative max-w-3xl mx-auto md:max-w-xl">
+                    <div className="p-4 pb-8">
+                        <div className="relative max-w-3xl mx-auto md:max-w-4xl">
                             <div className="absolute -top-11 left-2 w-[130px]">
                                 <FileListItem />
                             </div>
-                            <motion.input
+                            <motion.textarea
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.5, delay: 0.3 }}
-                                type="text"
                                 value={message}
-                                onChange={(e) => setMessage(e.target.value)}
+                                onChange={(e) => {
+                                    setMessage(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${Math.min(e.target.scrollHeight, 5 * 24)}px`;
+                                }}
                                 placeholder="Hỏi bất kỳ điều gì"
-                                className="w-full px-4 py-3 pr-20 bg-white rounded-full text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm border border-gray-200"
+                                className="w-full px-8 py-0.5 bg-white rounded-full text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm border border-gray-200 md:px-10 md:py-1 resize-none min-h-[30px] max-h-[120px] overflow-y-auto scrollbar-hide align-middle text-sm"
+                                style={{ paddingRight: '90px' }}
+                                rows="1"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                    }
+                                }}
                             />
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
                                 <motion.button
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.5, delay: 0.4 }}
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    className="h-8 w-8 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
+                                    className="h-7 w-7 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
                                 >
-                                    <Paperclip className="h-5 w-5" />
+                                    <Paperclip className="h-4 w-4" />
                                 </motion.button>
                                 <motion.button
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.5, delay: 0.5 }}
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    className="h-8 w-8 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
+                                    className="h-7 w-7 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
                                 >
-                                    <Send className="h-5 w-5" />
+                                    <Send className="h-4 w-4" />
                                 </motion.button>
                             </div>
                         </div>
