@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Settings, LogOut, UserPlus, Menu, X, Send, Paperclip } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileListItem from "../components/FileListItem";
+import SettingPopup from "../components/SettingPopup";
 import { APP_NAME, APP_VERSION, API_URL, API_URL_GENAI } from "../data/constant";
-import NewChat from "../components/NewChat";
 import ChatContent from "../components/ChatContent";
 import { useToast } from "../components/ToastProvider";
 
@@ -12,6 +13,7 @@ const Home = () => {
     const [tempChatEnabled, setTempChatEnabled] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [selectedModel, setSelectedModel] = useState("NULL Flash");
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
@@ -22,15 +24,24 @@ const Home = () => {
     const [isLoadingBotResponse, setIsLoadingBotResponse] = useState(false);
     const [files, setFiles] = useState([]);
     const { addToast } = useToast();
-
+    const navigate = useNavigate();
     const userMenuRef = useRef(null);
     const modelSelectorRef = useRef(null);
     const hasFetchedRef = useRef(false);
+    const [userData, setUserData] = useState({
+        displayName: "Unauthorized",
+        username: "Unauthorized",
+        email: "Unauthorized",
+    });
+    const [chatOptionsOpen, setChatOptionsOpen] = useState(null);
+    const [isRenamingChat, setIsRenamingChat] = useState(null);
+    const [newChatTitle, setNewChatTitle] = useState("");
+    const chatItemRefs = useRef({});
 
     useEffect(() => {
         const fetchFiles = async () => {
             if (!selectedChat) return;
-            
+
             try {
                 const response = await fetch(`${API_URL_GENAI}/admin/get-files`, {
                     method: 'POST',
@@ -65,13 +76,16 @@ const Home = () => {
             if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
                 setModelSelectorOpen(false);
             }
+            if (chatOptionsOpen && !event.target.closest('.chat-options-menu')) {
+                setChatOptionsOpen(null);
+            }
         }
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, []);
+    }, [chatOptionsOpen]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -136,6 +150,7 @@ const Home = () => {
                     setChatContexts(data.data);
                 } else {
                     addToast("Đã xảy ra lỗi khi lấy danh sách chat contexts: " + data.message, 'error');
+                    navigate('/logout');
                 }
             } catch (error) {
                 addToast('Không thể kết nối đến server để lấy danh sách chat contexts', 'error');
@@ -143,6 +158,67 @@ const Home = () => {
         };
 
         fetchChatContexts();
+    }, []);
+
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/user/get-user-info`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    setUserData({
+                        displayName: data.data.displayName,
+                        username: data.data.username,
+                        email: data.data.email,
+                    });
+                } else {
+                    addToast("Đã xảy ra lỗi khi lấy thông tin người dùng: " + data.message, 'error');
+                    navigate('/logout');
+                }
+            } catch (error) {
+                addToast('Không thể kết nối đến server để lấy thông tin người dùng', 'error');
+            }
+        };
+
+        fetchUserInfo();
+    }, []);
+
+    useEffect(() => {
+        const fetchNewContextId = async () => {
+            try {
+                const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        setSelectedChat(data.data);
+                    } else {
+                        addToast("Đã xảy ra lỗi khi lấy context ID mới: " + data.message, 'error');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    addToast("Đã xảy ra lỗi khi lấy context ID mới: " + errorData.message, 'error');
+                }
+            } catch (error) {
+                addToast("Lỗi kết nối khi lấy context ID mới: " + error.message, 'error');
+            }
+        };
+
+        if (!selectedChat) {
+            fetchNewContextId();
+        }
     }, []);
 
     const handleSendMessage = () => {
@@ -171,6 +247,102 @@ const Home = () => {
             });
             setIsLoadingBotResponse(false);
         }, 10000);
+    };
+
+    const handleChatOptionsClick = (contextId) => {
+        setChatOptionsOpen(chatOptionsOpen === contextId ? null : contextId);
+    };
+
+    const handleRenameChat = (contextId) => {
+        const chatToRename = chatContexts.find(chat => chat.contextId === contextId);
+        if (chatToRename) {
+            setIsRenamingChat(contextId);
+            setNewChatTitle(chatToRename.chatTitle);
+        }
+        setChatOptionsOpen(null);
+    };
+
+    const handleRenameSubmit = async (contextId) => {
+        if (!newChatTitle.trim()) {
+            addToast("Tên chat không được để trống", "error");
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/user/change-title-chat`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ NewTitle: newChatTitle, ContextId: contextId })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setChatContexts(chatContexts.map(chat =>
+                    chat.contextId === contextId
+                        ? { ...chat, chatTitle: newChatTitle }
+                        : chat
+                ));
+                addToast(data.message, "success");
+            } else {
+                addToast(data.message, "error");
+            }
+        } catch (error) {
+            addToast("Có lỗi xảy ra khi đổi tên chat: " + error.message, "error");
+        } finally {
+            setIsRenamingChat(null);
+            setNewChatTitle("");
+        }
+    };
+
+    const handleRenameCancel = () => {
+        setIsRenamingChat(null);
+        setNewChatTitle("");
+    };
+
+    const handleDeleteChat = async (contextId) => {
+        try {
+            const response = await fetch(`${API_URL}/api/user/delete-one-chat-context`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ContextId: contextId })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setChatContexts(chatContexts.filter(chat => chat.contextId !== contextId));
+                if (selectedChat === contextId) {
+                    setSelectedChat(null);
+                    setCurrentMessages([]);
+                }
+                addToast("Đã xóa đoạn chat thành công", "success");
+            } else {
+                addToast("Đã xảy ra lỗi khi xóa đoạn chat: " + data.message, "error");
+            }
+        } catch (error) {
+            addToast("Có lỗi xảy ra khi xóa đoạn chat: " + error.message, "error");
+        } finally {
+            setChatOptionsOpen(null);
+        }
+    };
+
+    const calculateMenuPosition = (contextId) => {
+        if (chatItemRefs.current[contextId]) {
+            const rect = chatItemRefs.current[contextId].getBoundingClientRect();
+            return {
+                top: rect.top + window.scrollY + (rect.height / 2) - 35,
+                right: 4
+            };
+        }
+        return {
+            top: 0,
+            right: 4
+        };
     };
 
     return (
@@ -251,6 +423,10 @@ const Home = () => {
                                     <div className="py-1">
                                         <motion.button
                                             whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+                                            onClick={() => {
+                                                setSettingsOpen(true);
+                                                setUserMenuOpen(false);
+                                            }}
                                             className="flex items-center w-full px-3 py-2 text-left hover:bg-gray-100 transition-colors duration-150"
                                         >
                                             <Settings className="mr-2 h-4 w-4" />
@@ -350,6 +526,31 @@ const Home = () => {
                                 whileHover={{ filter: "brightness(0.98)" }}
                                 whileTap={{ filter: "brightness(0.95)" }}
                                 className="mt-2 w-full flex items-center justify-start px-3 py-1.5 bg-white rounded-md hover:bg-gray-50 transition-colors duration-200 border border-gray-200 text-sm"
+                                onClick={async () => {
+                                    try {
+                                        const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
+                                            method: 'GET',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            }
+                                        });
+
+                                        if (response.ok) {
+                                            const data = await response.json();
+                                            if (data.success) {
+                                                setSelectedChat(data.data);
+                                                setCurrentMessages([]);
+                                            } else {
+                                                addToast("Đã xảy ra lỗi khi lấy context ID mới: " + data.message, 'error');
+                                            }
+                                        } else {
+                                            const errorData = await response.json();
+                                            addToast("Đã xảy ra lỗi khi lấy context ID mới: " + errorData.message, 'error');
+                                        }
+                                    } catch (error) {
+                                        addToast("Lỗi kết nối khi lấy context ID mới: " + error.message, 'error');
+                                    }
+                                }}
                             >
                                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                                 <span>Cuộc trò chuyện mới</span>
@@ -361,17 +562,117 @@ const Home = () => {
                                 <h3 className="px-2 text-xs font-medium text-gray-500 mb-1.5">Cuộc trò chuyện gần đây</h3>
                                 <div className="space-y-1 max-h-[calc(100vh-250px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent scrollbar-thumb-rounded-full scrollbar-track-rounded-full">
                                     {chatContexts.map((chat, index) => (
-                                        <motion.button
-                                            key={chat.contextId}
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ duration: 0.3, delay: index * 0.1 }}
-                                            whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                                            className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === chat.contextId ? "bg-gray-200 font-medium" : "hover:bg-gray-200"}`}
-                                            onClick={() => setSelectedChat(chat.contextId)}
-                                        >
-                                            {chat.chatTitle}
-                                        </motion.button>
+                                        <div key={chat.contextId} className="relative group" ref={el => chatItemRefs.current[chat.contextId] = el}>
+                                            {isRenamingChat === chat.contextId ? (
+                                                <div className="w-full transition-colors duration-150 text-sm bg-gray-200 rounded-md">
+                                                    <input
+                                                        type="text"
+                                                        value={newChatTitle}
+                                                        onChange={(e) => setNewChatTitle(e.target.value)}
+                                                        className="w-full px-3 py-1.5 bg-transparent focus:outline-none text-gray-900 rounded-md"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleRenameSubmit(chat.contextId);
+                                                            } else if (e.key === 'Escape') {
+                                                                handleRenameCancel();
+                                                            }
+                                                        }}
+                                                    />
+                                                    <div className="flex justify-end space-x-1 pb-1 px-2">
+                                                        <motion.button
+                                                            whileHover={{ scale: 1.1 }}
+                                                            whileTap={{ scale: 0.9 }}
+                                                            onClick={handleRenameCancel}
+                                                            className="text-gray-500 hover:text-gray-700 text-xs p-0.5 rounded-full hover:bg-gray-100"
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </motion.button>
+                                                        <motion.button
+                                                            whileHover={{ scale: 1.1 }}
+                                                            whileTap={{ scale: 0.9 }}
+                                                            onClick={() => handleRenameSubmit(chat.contextId)}
+                                                            className="text-green-500 hover:text-green-700 text-xs p-0.5 rounded-full hover:bg-gray-100"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                                            </svg>
+                                                        </motion.button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <motion.button
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                                                    className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === chat.contextId ? "bg-gray-300" : "bg-transparent hover:bg-gray-200"}`}
+                                                    onClick={() => setSelectedChat(chat.contextId)}
+                                                >
+                                                    <span className="truncate block pr-6" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chat.chatTitle}</span>
+                                                </motion.button>
+                                            )}
+                                            <motion.div
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 z-40"
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{
+                                                    opacity: isRenamingChat === chat.contextId ? 0 : (selectedChat === chat.contextId ? 1 : chatOptionsOpen === chat.contextId ? 1 : 0),
+                                                    scale: isRenamingChat === chat.contextId ? 0.8 : (selectedChat === chat.contextId ? 1 : chatOptionsOpen === chat.contextId ? 1 : 0.8)
+                                                }}
+                                                whileHover={{
+                                                    opacity: isRenamingChat === chat.contextId ? 0 : (selectedChat === chat.contextId ? 1 : 0),
+                                                    scale: isRenamingChat === chat.contextId ? 0.8 : (selectedChat === chat.contextId ? 1 : 0.8)
+                                                }}
+                                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                            >
+                                                <motion.button
+                                                    whileHover={{ scale: 1.1 }}
+                                                    whileTap={{ scale: 0.9 }}
+                                                    className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleChatOptionsClick(chat.contextId);
+                                                    }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <circle cx="12" cy="12" r="1"></circle>
+                                                        <circle cx="12" cy="5" r="1"></circle>
+                                                        <circle cx="12" cy="19" r="1"></circle>
+                                                    </svg>
+                                                </motion.button>
+                                            </motion.div>
+                                            {/* Menu tùy chọn - đặt ngoài container có overflow */}
+                                            <AnimatePresence>
+                                                {chatOptionsOpen === chat.contextId && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: 10 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        className="fixed w-32 bg-white rounded-lg shadow-lg z-40 overflow-hidden border border-gray-200"
+                                                        style={{
+                                                            top: `${calculateMenuPosition(chat.contextId).top}px`,
+                                                            right: `${calculateMenuPosition(chat.contextId).right}px`,
+                                                        }}
+                                                    >
+                                                        <motion.button
+                                                            whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+                                                            onClick={() => handleRenameChat(chat.contextId)}
+                                                            className="w-full text-left px-3 py-2 hover:bg-gray-100 transition-colors duration-150 text-sm"
+                                                        >
+                                                            Đổi tên
+                                                        </motion.button>
+                                                        <motion.button
+                                                            whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+                                                            onClick={() => handleDeleteChat(chat.contextId)}
+                                                            className="w-full text-left px-3 py-2 text-red-600 hover:bg-gray-100 transition-colors duration-150 text-sm"
+                                                        >
+                                                            Xóa
+                                                        </motion.button>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -418,16 +719,12 @@ const Home = () => {
                         ${sidebarOpen && !isMobile ? "md:ml-64" : "ml-0"}
                     `}
                 >
-                    {selectedChat ?
-                        <ChatContent
-                            contextId={selectedChat}
-                            messages={currentMessages}
-                            setMessages={setCurrentMessages}
-                            isLoadingBotResponse={isLoadingBotResponse}
-                        /> :
-                        <NewChat />
-                    }
-
+                    <ChatContent
+                        contextId={selectedChat}
+                        messages={currentMessages}
+                        setMessages={setCurrentMessages}
+                        isLoadingBotResponse={isLoadingBotResponse}
+                    />
                     <div className="p-4 pb-8">
                         <div className="relative max-w-3xl mx-auto md:max-w-4xl">
                             <div className="absolute -top-11 left-2 w-[130px]">
@@ -450,6 +747,7 @@ const Home = () => {
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
+                                        handleSendMessage();
                                     }
                                 }}
                             />
@@ -480,6 +778,16 @@ const Home = () => {
                     </div>
                 </div>
             </div>
+
+            <AnimatePresence>
+                {settingsOpen && (
+                    <SettingPopup
+                        onClose={() => setSettingsOpen(false)}
+                        userData={userData}
+                        setUserData={setUserData}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
