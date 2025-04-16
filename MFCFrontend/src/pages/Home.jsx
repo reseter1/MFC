@@ -56,6 +56,7 @@ const Home = () => {
     const [newChatTitle, setNewChatTitle] = useState("");
     const chatItemRefs = useRef({});
     const prevTempChatEnabledRef = useRef(false);
+    const fileInputRef = useRef(null);
 
     const isValidContextId = (contextId) => {
         return contextId && contextId.length === 20 && /^[a-zA-Z0-9]+$/.test(contextId);
@@ -459,6 +460,29 @@ const Home = () => {
                 if (selectedChat === contextId) {
                     setSelectedChat(null);
                     setCurrentMessages([]);
+                    // Tạo context ID mới sau khi xóa
+                    try {
+                        const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (response.ok) {
+                            const newContextData = await response.json();
+                            if (newContextData.success) {
+                                setSelectedChat(newContextData.data);
+                            } else {
+                                addToast("Đã xảy ra lỗi khi lấy context ID mới: " + newContextData.message, 'error');
+                            }
+                        } else {
+                            const errorData = await response.json();
+                            addToast("Đã xảy ra lỗi khi lấy context ID mới: " + errorData.message, 'error');
+                        }
+                    } catch (error) {
+                        addToast("Lỗi kết nối khi lấy context ID mới: " + error.message, 'error');
+                    }
                 }
                 addToast("Đã xóa đoạn chat thành công", "success");
             } else {
@@ -483,6 +507,69 @@ const Home = () => {
             top: 0,
             right: 4
         };
+    };
+
+    const handleFileUpload = async (e) => {
+        const selectedFiles = Array.from(e.target.files);
+        if (!selectedFiles.length) return;
+
+        if (!selectedChat) {
+            addToast("Vui lòng bắt đầu cuộc trò chuyện trước khi tải lên tệp", "error");
+            return;
+        }
+
+        let hasSuccessfulUpload = false;
+        setIsLoadingBotResponse(true);
+
+        for (const file of selectedFiles) {
+            const formData = new FormData();
+            formData.append('upload', file);
+            formData.append('contextId', selectedChat);
+
+            try {
+                const response = await fetch(`${API_URL_GENAI}/v2/upload-file`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    hasSuccessfulUpload = true;
+                } else {
+                    addToast(`Lỗi khi tải lên tệp "${file.name}": ${data.message || data.error}`, "error");
+                }
+            } catch (error) {
+                addToast(`Lỗi kết nối khi tải lên tệp "${file.name}": ${error.message}`, "error");
+            }
+        }
+
+        if (hasSuccessfulUpload) {
+            try {
+                const fileResponse = await fetch(`${API_URL_GENAI}/admin/get-files`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contextId: selectedChat
+                    })
+                });
+
+                if (fileResponse.ok) {
+                    const fileData = await fileResponse.json();
+                    if (fileData.success) {
+                        setFiles(fileData.data);
+                    }
+                }
+            } catch (fileError) {
+                console.error("Lỗi khi cập nhật danh sách file:", fileError);
+                addToast("Không thể cập nhật danh sách file", "error");
+            }
+        }
+
+        setIsLoadingBotResponse(false);
+        e.target.value = '';
     };
 
     return (
@@ -915,9 +1002,17 @@ const Home = () => {
                                             : 'text-gray-600 hover:text-black'
                                         }`}
                                     disabled={isLoadingBotResponse}
+                                    onClick={() => fileInputRef.current.click()}
                                 >
                                     <Paperclip className="h-4 w-4" />
                                 </motion.button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    onChange={handleFileUpload}
+                                    multiple
+                                />
                                 <motion.button
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}
