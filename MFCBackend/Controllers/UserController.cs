@@ -283,5 +283,33 @@ namespace MFCBackend.Controllers
                 return BadRequest(new { success = false, message = "Có lỗi xảy ra khi xóa chat context: " + ex.Message });
             }
         }
+
+        [Authorize]
+        [HttpPost("api/user/add-new-chat-context")]
+        public async Task<IActionResult> AddNewChatContext([FromBody] AddNewChatContextDto data)
+        {
+            try
+            {
+                string contextId = data.ContextId;
+                string chatTitle = data.ChatTitle;
+                
+                var token = Request.Headers["Authorization"].ToString().Split(" ")[1];
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var jwtToken = tokenHandler.ReadJwtToken(token);
+                var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
+                if (userIdClaim == null)
+                {
+                    return BadRequest(new { success = false, message = "Token không hợp lệ." });
+                }
+
+                var userId = Guid.Parse(userIdClaim.Value);
+                await _userRepository.AddNewChatContext(userId, contextId, chatTitle);
+                return Ok(new { success = true, message = "Thêm chat context mới thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = "Có lỗi xảy ra khi thêm chat context mới: " + ex.Message });
+            }
+        }
     }
 }

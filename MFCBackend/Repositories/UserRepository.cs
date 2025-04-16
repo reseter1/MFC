@@ -69,5 +69,22 @@ namespace MFCBackend.Repositories
             }
             return user;
         }
+
+        public async Task AddNewChatContext(Guid userId, string contextId, string chatTitle)
+        {
+            var existingContext = await _context.UserChatContexts
+                .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.ContextId == contextId);
+                
+            if (existingContext == null)
+            {
+                await _context.UserChatContexts.AddAsync(new UserChatContext { 
+                    UserId = userId, 
+                    ContextId = contextId, 
+                    ChatTitle = chatTitle 
+                });
+                await _context.SaveChangesAsync();
+            }
+        }
+        
     }
 } 

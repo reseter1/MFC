@@ -20,12 +20,14 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
   const voiceSettings = useSelector(selectVoiceSettings)
   const [isLoadingTTS, setIsLoadingTTS] = React.useState({})
   const [isLoadingMessages, setIsLoadingMessages] = useState(true)
+  const [isRenderingMessages, setIsRenderingMessages] = useState(false)
   const prevContextIdRef = useRef(contextId)
 
   useEffect(() => {
     const fetchMessages = async () => {
       if (contextId !== prevContextIdRef.current || messages.length === 0) {
         setIsLoadingMessages(true)
+        setIsRenderingMessages(true)
         try {
           const response = await fetch(`${API_URL_GENAI}/admin/get-messages`, {
             method: "POST",
@@ -46,12 +48,18 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
                 content: msg.content,
               }))
               setMessages(formattedMessages)
+              setTimeout(() => {
+                setIsLoadingMessages(false)
+                setTimeout(() => {
+                  setIsRenderingMessages(false)
+                }, 100)
+              }, 300)
             }
           }
         } catch (error) {
           addToast("Lỗi khi lấy tin nhắn: " + error.message, "error")
-        } finally {
           setIsLoadingMessages(false)
+          setIsRenderingMessages(false)
         }
         prevContextIdRef.current = contextId
       }
@@ -62,12 +70,13 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
     } else {
       setMessages([])
       setIsLoadingMessages(false)
+      setIsRenderingMessages(false)
     }
   }, [contextId, setMessages, addToast, messages.length])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, isLoadingBotResponse])
+  }, [messages, isLoadingBotResponse, isRenderingMessages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -159,7 +168,7 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.3 }}
             className="text-center"
           >
             <div className="w-16 h-16 border-4 border-t-blue-500 border-b-blue-500 border-l-transparent border-r-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -174,9 +183,9 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
             {messages.map((message) => (
               <motion.div
                 key={message.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: message.id * 0.1 }}
+                transition={{ duration: 0.5, delay: message.id * 0.015 }}
                 className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
@@ -208,7 +217,7 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
                       whileTap={{ scale: 0.9 }}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.2 }}
                       disabled={isLoadingTTS[message.id]}
                     >
                       {isLoadingTTS[message.id] ? (
@@ -228,9 +237,9 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
             ))}
             {isLoadingBotResponse && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.2 }}
                 className="flex justify-start"
               >
                 <div className="max-w-md p-3 rounded-lg bg-transparent text-gray-900 flex items-center">

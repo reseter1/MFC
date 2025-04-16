@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Settings, LogOut, UserPlus, Menu, X, Send, Paperclip } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileListItem from "../components/FileListItem";
@@ -7,6 +7,21 @@ import SettingPopup from "../components/SettingPopup";
 import { APP_NAME, APP_VERSION, API_URL, API_URL_GENAI } from "../data/constant";
 import ChatContent from "../components/ChatContent";
 import { useToast } from "../components/ToastProvider";
+
+// Thêm CSS cho hiệu ứng nhấp nháy khi chế độ tạm thời được bật
+const tempChatPulseKeyframes = `
+@keyframes tempChatPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.3);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+    }
+}
+`;
 
 const Home = () => {
     const [message, setMessage] = useState("");
@@ -17,7 +32,9 @@ const Home = () => {
     const [selectedModel, setSelectedModel] = useState("NULL Flash");
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
-    const [selectedChat, setSelectedChat] = useState(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const initialContextId = searchParams.get('contextId');
+    const [selectedChat, setSelectedChat] = useState(initialContextId || null);
     const [models, setModels] = useState([]);
     const [chatContexts, setChatContexts] = useState([]);
     const [currentMessages, setCurrentMessages] = useState([]);
@@ -28,6 +45,7 @@ const Home = () => {
     const userMenuRef = useRef(null);
     const modelSelectorRef = useRef(null);
     const hasFetchedRef = useRef(false);
+    const hasCheckedContextIdRef = useRef(false);
     const [userData, setUserData] = useState({
         displayName: "Unauthorized",
         username: "Unauthorized",
@@ -37,6 +55,11 @@ const Home = () => {
     const [isRenamingChat, setIsRenamingChat] = useState(null);
     const [newChatTitle, setNewChatTitle] = useState("");
     const chatItemRefs = useRef({});
+    const prevTempChatEnabledRef = useRef(false);
+
+    const isValidContextId = (contextId) => {
+        return contextId && contextId.length === 20 && /^[a-zA-Z0-9]+$/.test(contextId);
+    };
 
     useEffect(() => {
         const fetchFiles = async () => {
@@ -204,6 +227,7 @@ const Home = () => {
                     const data = await response.json();
                     if (data.success) {
                         setSelectedChat(data.data);
+                        setCurrentMessages([]);
                     } else {
                         addToast("Đã xảy ra lỗi khi lấy context ID mới: " + data.message, 'error');
                     }
@@ -216,13 +240,101 @@ const Home = () => {
             }
         };
 
-        if (!selectedChat) {
+        const checkAndCreateContextId = () => {
+            if (hasCheckedContextIdRef.current) return;
+            hasCheckedContextIdRef.current = true;
+
+            if (!selectedChat || (initialContextId && !isValidContextId(initialContextId))) {
+                fetchNewContextId();
+            }
+        };
+
+        checkAndCreateContextId();
+    }, [initialContextId, selectedChat]);
+
+    useEffect(() => {
+        if (selectedChat) {
+            setSearchParams({ contextId: selectedChat });
+        }
+    }, [selectedChat, setSearchParams]);
+
+    useEffect(() => {
+        const fetchNewContextId = async () => {
+            try {
+                const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        setSelectedChat(data.data);
+                        setCurrentMessages([]);
+                    } else {
+                        addToast("Đã xảy ra lỗi khi lấy context ID mới: " + data.message, 'error');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    addToast("Đã xảy ra lỗi khi lấy context ID mới: " + errorData.message, 'error');
+                }
+            } catch (error) {
+                addToast("Lỗi kết nối khi lấy context ID mới: " + error.message, 'error');
+            }
+        };
+
+        // Nếu trạng thái thay đổi (bật <-> tắt), tạo context ID mới
+        if (prevTempChatEnabledRef.current !== tempChatEnabled) {
             fetchNewContextId();
         }
+
+        // Cập nhật giá trị trước đó để so sánh cho lần tiếp theo
+        prevTempChatEnabledRef.current = tempChatEnabled;
+    }, [tempChatEnabled]);
+
+    // Thêm style element cho keyframes
+    useEffect(() => {
+        const styleElement = document.createElement('style');
+        styleElement.innerHTML = tempChatPulseKeyframes;
+        document.head.appendChild(styleElement);
+
+        return () => {
+            document.head.removeChild(styleElement);
+        };
     }, []);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (message.trim() === "") return;
+
+        if (currentMessages.length === 0 && !tempChatEnabled) {
+            try {
+                const response = await fetch(`${API_URL}/api/user/add-new-chat-context`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ContextId: selectedChat,
+                        ChatTitle: "New Chat"
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    addToast("Đã xảy ra lỗi khi thêm chat context mới: " + data.message, 'error');
+                } else {
+                    setChatContexts(prevChats => [{
+                        contextId: selectedChat,
+                        chatTitle: "New Chat"
+                    }, ...prevChats]);
+                }
+            } catch (error) {
+                addToast("Lỗi kết nối khi thêm chat context mới: " + error.message, 'error');
+            }
+        }
 
         const newMessage = {
             id: currentMessages.length + 1,
@@ -232,21 +344,49 @@ const Home = () => {
 
         setCurrentMessages(prevMessages => [...prevMessages, newMessage]);
         setMessage("");
-        setTimeout(() => {
-            setIsLoadingBotResponse(true);
-        }, 1000);
+        setIsLoadingBotResponse(true);
 
-        setTimeout(() => {
-            setCurrentMessages(prevMessages => {
-                const botResponse = {
-                    id: prevMessages.length + 1,
-                    sender: 'bot',
-                    content: 'Xin chào! Tôi có thể giúp gì cho bạn?'
-                };
-                return [...prevMessages, botResponse];
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        try {
+            const currentModel = models.find(model => model.name === selectedModel);
+            const modelValue = currentModel ? currentModel.value : 'nan';
+
+            const response = await fetch(`${API_URL_GENAI}/v2/ai-gen`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: message,
+                    model: modelValue,
+                    contextId: selectedChat
+                })
             });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setCurrentMessages(prevMessages => {
+                        const botResponse = {
+                            id: prevMessages.length + 1,
+                            sender: 'bot',
+                            content: data.text
+                        };
+                        return [...prevMessages, botResponse];
+                    });
+                } else {
+                    addToast("Lỗi từ AI: " + data.message, 'error');
+                }
+            } else {
+                const errorData = await response.json();
+                addToast("Lỗi khi gọi API AI: " + errorData.message, 'error');
+            }
+        } catch (error) {
+            addToast("Lỗi kết nối khi gọi API AI: " + error.message, 'error');
+        } finally {
             setIsLoadingBotResponse(false);
-        }, 10000);
+        }
     };
 
     const handleChatOptionsClick = (contextId) => {
@@ -389,14 +529,14 @@ const Home = () => {
                         whileTap={{ scale: 0.95 }}
                     >
                         <div
-                            className={`relative inline-block w-10 h-5 rounded-full cursor-pointer mr-2 transition-colors duration-200 ${tempChatEnabled ? "bg-gray-800" : "bg-gray-300"}`}
+                            className={`relative inline-block w-10 h-5 rounded-full cursor-pointer mr-2 transition-colors duration-200 ${tempChatEnabled ? "bg-amber-500" : "bg-gray-300"}`}
                             onClick={() => setTempChatEnabled(!tempChatEnabled)}
                         >
                             <span
-                                className={`absolute top-0.5 left-0.5 ${tempChatEnabled ? "bg-white" : "bg-white"} w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${tempChatEnabled ? "transform translate-x-5" : ""}`}
+                                className={`absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${tempChatEnabled ? "transform translate-x-5" : ""}`}
                             />
                         </div>
-                        <label className="cursor-pointer" onClick={() => setTempChatEnabled(!tempChatEnabled)}>
+                        <label className={`cursor-pointer ${tempChatEnabled ? "text-amber-600 font-medium" : ""}`} onClick={() => setTempChatEnabled(!tempChatEnabled)}>
                             Tạm thời
                         </label>
                     </motion.div>
@@ -741,8 +881,17 @@ const Home = () => {
                                     e.target.style.height = `${Math.min(e.target.scrollHeight, 5 * 24)}px`;
                                 }}
                                 placeholder="Hỏi bất kỳ điều gì"
-                                className="w-full px-8 py-0.5 bg-white rounded-full text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm border border-gray-200 md:px-10 md:py-1 resize-none min-h-[30px] max-h-[120px] overflow-y-auto scrollbar-hide align-middle text-sm"
-                                style={{ paddingRight: '90px' }}
+                                className={`w-full px-8 py-0.5 rounded-full focus:outline-none focus:ring-1 shadow-sm border resize-none min-h-[30px] max-h-[120px] overflow-y-auto scrollbar-hide align-middle text-sm md:px-10 md:py-1 
+                                    ${tempChatEnabled
+                                        ? "bg-yellow-50 text-amber-900 focus:ring-amber-300 border-amber-200 placeholder-amber-700 temp-chat-active"
+                                        : "bg-white text-gray-900 focus:ring-gray-300 border-gray-200 placeholder-gray-500"
+                                    }`}
+                                style={{
+                                    paddingRight: '90px',
+                                    ...(tempChatEnabled ? {
+                                        animation: 'tempChatPulse 3s infinite ease-in-out'
+                                    } : {})
+                                }}
                                 rows="1"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -750,26 +899,39 @@ const Home = () => {
                                         handleSendMessage();
                                     }
                                 }}
+                                disabled={isLoadingBotResponse}
                             />
                             <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
                                 <motion.button
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.5, delay: 0.4 }}
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    className="h-7 w-7 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
+                                    transition={{ duration: 0.2, delay: 0.0 }}
+                                    whileHover={{ scale: isLoadingBotResponse || isMobile ? 1 : 1.3, transition: { duration: 0.2 } }}
+                                    whileTap={{ scale: isMobile ? 1 : 0.9, transition: { duration: 0.2 } }}
+                                    className={`h-7 w-7 flex items-center justify-center transition-colors duration-150 ${isLoadingBotResponse
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : tempChatEnabled
+                                            ? 'text-amber-600 hover:text-amber-800'
+                                            : 'text-gray-600 hover:text-black'
+                                        }`}
+                                    disabled={isLoadingBotResponse}
                                 >
                                     <Paperclip className="h-4 w-4" />
                                 </motion.button>
                                 <motion.button
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.5, delay: 0.5 }}
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    className="h-7 w-7 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
+                                    transition={{ duration: 0.2, delay: 0.0 }}
+                                    whileHover={{ scale: isLoadingBotResponse || isMobile ? 1 : 1.3, transition: { duration: 0.2 } }}
+                                    whileTap={{ scale: isMobile ? 1 : 0.9, transition: { duration: 0.2 } }}
+                                    className={`h-7 w-7 flex items-center justify-center transition-colors duration-150 ${isLoadingBotResponse
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : tempChatEnabled
+                                            ? 'text-amber-600 hover:text-amber-800'
+                                            : 'text-gray-600 hover:text-black'
+                                        }`}
                                     onClick={handleSendMessage}
+                                    disabled={isLoadingBotResponse}
                                 >
                                     <Send className="h-4 w-4" />
                                 </motion.button>
