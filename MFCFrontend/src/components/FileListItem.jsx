@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './FileListItem.css';
 
-export default function FileListItem() {
-    const [files, setFiles] = useState([
-        { mimetype: "text/plain", name: "document.txt" },
-        { mimetype: "image/jpeg", name: "photo.jpg" },
-        { mimetype: "application/pdf", name: "report.pdf" }
-    ]);
+export default function FileListItem({ files }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    if (files.length === 0) {
+    if (!files || files.length === 0) {
         return null;
     }
+
+    const normalizedFiles = files.map(file => ({
+        mimetype: file.fileMimeType,
+        name: file.filePath.split('/').pop()
+    }));
 
     return (
         <div className="file-list-container">
@@ -26,7 +26,7 @@ export default function FileListItem() {
                             exit={{ opacity: 0, y: 20, height: 0 }}
                             transition={{ duration: 0.3 }}
                         >
-                            {files.map((file, index) => (
+                            {normalizedFiles.map((file, index) => (
                                 <motion.div
                                     key={index}
                                     initial={{ opacity: 0, y: 10 }}

@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { Plus, Settings, LogOut, UserPlus, Menu, X, Send, Paperclip } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FileListItem from "../components/FileListItem";
-import { APP_NAME, APP_VERSION, PROVIDER_URL, API_URL_GENAI } from "../data/constant";
+import { APP_NAME, APP_VERSION, API_URL, API_URL_GENAI } from "../data/constant";
 import NewChat from "../components/NewChat";
 import ChatContent from "../components/ChatContent";
+import { useToast } from "../components/ToastProvider";
 
 const Home = () => {
     const [message, setMessage] = useState("");
@@ -16,9 +17,45 @@ const Home = () => {
     const [isMobile, setIsMobile] = useState(false);
     const [selectedChat, setSelectedChat] = useState(null);
     const [models, setModels] = useState([]);
+    const [chatContexts, setChatContexts] = useState([]);
+    const [currentMessages, setCurrentMessages] = useState([]);
+    const [isLoadingBotResponse, setIsLoadingBotResponse] = useState(false);
+    const [files, setFiles] = useState([]);
+    const { addToast } = useToast();
 
     const userMenuRef = useRef(null);
     const modelSelectorRef = useRef(null);
+    const hasFetchedRef = useRef(false);
+
+    useEffect(() => {
+        const fetchFiles = async () => {
+            if (!selectedChat) return;
+            
+            try {
+                const response = await fetch(`${API_URL_GENAI}/admin/get-files`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contextId: selectedChat
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setFiles(data.data);
+                } else {
+                    const errorData = await response.json();
+                    addToast("Đã xảy ra lỗi khi lấy danh sách file: " + (errorData.message), 'error');
+                }
+            } catch (error) {
+                addToast("Lỗi kết nối: " + error.message, 'error');
+            }
+        };
+
+        fetchFiles();
+    }, [selectedChat]);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -79,6 +116,62 @@ const Home = () => {
 
         fetchModels();
     }, []);
+
+    useEffect(() => {
+        const fetchChatContexts = async () => {
+            if (hasFetchedRef.current) return;
+            hasFetchedRef.current = true;
+
+            try {
+                const response = await fetch(`${API_URL}/api/user/get-chat-contexts`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    setChatContexts(data.data);
+                } else {
+                    addToast("Đã xảy ra lỗi khi lấy danh sách chat contexts: " + data.message, 'error');
+                }
+            } catch (error) {
+                addToast('Không thể kết nối đến server để lấy danh sách chat contexts', 'error');
+            }
+        };
+
+        fetchChatContexts();
+    }, []);
+
+    const handleSendMessage = () => {
+        if (message.trim() === "") return;
+
+        const newMessage = {
+            id: currentMessages.length + 1,
+            sender: 'user',
+            content: message
+        };
+
+        setCurrentMessages(prevMessages => [...prevMessages, newMessage]);
+        setMessage("");
+        setTimeout(() => {
+            setIsLoadingBotResponse(true);
+        }, 1000);
+
+        setTimeout(() => {
+            setCurrentMessages(prevMessages => {
+                const botResponse = {
+                    id: prevMessages.length + 1,
+                    sender: 'bot',
+                    content: 'Xin chào! Tôi có thể giúp gì cho bạn?'
+                };
+                return [...prevMessages, botResponse];
+            });
+            setIsLoadingBotResponse(false);
+        }, 10000);
+    };
 
     return (
         <div className="flex flex-col h-screen bg-white text-gray-900 text-base">
@@ -267,36 +360,19 @@ const Home = () => {
                             <div className="mt-3">
                                 <h3 className="px-2 text-xs font-medium text-gray-500 mb-1.5">Cuộc trò chuyện gần đây</h3>
                                 <div className="space-y-1 max-h-[calc(100vh-250px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent scrollbar-thumb-rounded-full scrollbar-track-rounded-full">
-                                    <motion.button
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.1 }}
-                                        whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                                        className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === 1 ? "bg-gray-200 font-medium" : "hover:bg-gray-200"}`}
-                                        onClick={() => setSelectedChat(1)}
-                                    >
-                                        Cuộc trò chuyện 1
-                                    </motion.button>
-                                    <motion.button
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.2 }}
-                                        whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                                        className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === 2 ? "bg-gray-200 font-medium" : "hover:bg-gray-200"}`}
-                                        onClick={() => setSelectedChat(2)}
-                                    >
-                                        Cuộc trò chuyện 2
-                                    </motion.button>
-                                    <motion.button
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.3 }}
-                                        whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                                        className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === 3 ? "bg-gray-200 font-medium" : "hover:bg-gray-200"}`}
-                                        onClick={() => setSelectedChat(3)}
-                                    >
-                                        Cuộc trò chuyện 3
-                                    </motion.button>
+                                    {chatContexts.map((chat, index) => (
+                                        <motion.button
+                                            key={chat.contextId}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ duration: 0.3, delay: index * 0.1 }}
+                                            whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+                                            className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === chat.contextId ? "bg-gray-200 font-medium" : "hover:bg-gray-200"}`}
+                                            onClick={() => setSelectedChat(chat.contextId)}
+                                        >
+                                            {chat.chatTitle}
+                                        </motion.button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -342,12 +418,20 @@ const Home = () => {
                         ${sidebarOpen && !isMobile ? "md:ml-64" : "ml-0"}
                     `}
                 >
-                    {selectedChat ? <ChatContent /> : <NewChat />}
+                    {selectedChat ?
+                        <ChatContent
+                            contextId={selectedChat}
+                            messages={currentMessages}
+                            setMessages={setCurrentMessages}
+                            isLoadingBotResponse={isLoadingBotResponse}
+                        /> :
+                        <NewChat />
+                    }
 
                     <div className="p-4 pb-8">
                         <div className="relative max-w-3xl mx-auto md:max-w-4xl">
                             <div className="absolute -top-11 left-2 w-[130px]">
-                                <FileListItem />
+                                <FileListItem files={files} />
                             </div>
                             <motion.textarea
                                 initial={{ opacity: 0, y: 20 }}
@@ -387,6 +471,7 @@ const Home = () => {
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     className="h-7 w-7 flex items-center justify-center text-gray-600 hover:text-black transition-colors duration-150"
+                                    onClick={handleSendMessage}
                                 >
                                     <Send className="h-4 w-4" />
                                 </motion.button>

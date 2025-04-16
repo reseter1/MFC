@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MFCBackend.Models;
+
 namespace MFCBackend.Data
 {
     public class ApplicationDbContext : DbContext
@@ -11,5 +12,6 @@ namespace MFCBackend.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<JWT> JWTs { get; set; }
+        public DbSet<UserChatContext> UserChatContexts { get; set; }
     }
 } 

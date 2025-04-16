@@ -100,6 +100,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<ChatContextsRepository>();
 builder.Services.AddScoped<JWTRepository>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<AppInfo>(builder.Configuration.GetSection("AppInfo"));
