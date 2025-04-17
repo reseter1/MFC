@@ -768,10 +768,14 @@ const Home = () => {
                         <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="rounded-full h-8 w-8 bg-gray-200 text-black flex items-center justify-center hover:bg-gray-300 transition-colors duration-200"
+                            className="rounded-full h-8 w-8 bg-gray-200 text-black flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 overflow-hidden"
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                         >
-                            <span>NH</span>
+                            <img
+                                src="https://cdn1.iconfinder.com/data/icons/user-interface-664/24/User-512.png"
+                                alt="User Avatar"
+                                className="w-full h-full object-cover"
+                            />
                         </motion.button>
 
                         <AnimatePresence>

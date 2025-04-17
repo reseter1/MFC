@@ -88,7 +88,7 @@ const SettingPopup = ({ onClose, userData, setUserData }) => {
             const data = await response.json();
             if (data.success) {
                 addToast('Đã xóa toàn bộ đoạn chat!', 'success');
-                window.location.reload();
+                navigate('/');
             }
         } catch (error) {
             addToast('Đã xảy ra lỗi khi xóa toàn bộ đoạn chat: ' + error.message, 'error');
