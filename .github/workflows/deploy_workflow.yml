@@ -1,0 +1,81 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          branch: ${{ github.ref_name }}
+
+      - name: Setup Nodejs v20.19.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+
+      - name: Remove .git folder
+        run: |
+          rm -rf MFCFrontend/.git
+
+      - name: Install dependencies
+        run: |
+          cd MFCFrontend
+          npm install
+
+      - name: Build frontend
+        run: |
+          cd MFCFrontend
+          npm run build
+
+      - name: Copy to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          source: "./dist/*"
+          target: "/var/www/html/mfc-frontend"
+          rm: false
+          overwrite: true
+          strip_components: 1
+
+      - name: Setup dotnet 8.0.407
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.407
+
+      - name: Restore dependencies
+        run: |
+          cd MFCBackend
+          dotnet restore
+
+      - name: Copy to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          source: "./MFCBackend/*"
+          target: "/workspaces/Project3"
+          rm: false
+          overwrite: true
+          strip_components: 1
+
+      - name: Restart backend
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            export PATH=$PATH:/root/.nvm/versions/node/v20.19.0/bin
+            which pm2
+            pm2 restart 1
