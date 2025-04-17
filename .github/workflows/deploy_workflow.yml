@@ -41,7 +41,7 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
           source: "./MFCFrontend/dist/*"
-          target: "/workspaces/Project2"
+          target: "/workspace/Project2"
           rm: false
           overwrite: true
           strip_components: 1
@@ -64,7 +64,7 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
           source: "./MFCBackend/*"
-          target: "/workspaces/Project3"
+          target: "/workspace/Project3"
           rm: false
           overwrite: true
           strip_components: 1
