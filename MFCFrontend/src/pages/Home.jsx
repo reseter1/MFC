@@ -772,7 +772,7 @@ const Home = () => {
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                         >
                             <img
-                                src="https://cdn1.iconfinder.com/data/icons/user-interface-664/24/User-512.png"
+                                src="https://i.pinimg.com/736x/4b/90/5b/4b905b1342b5635310923fd10319c265.jpg"
                                 alt="User Avatar"
                                 className="w-full h-full object-cover"
                             />
