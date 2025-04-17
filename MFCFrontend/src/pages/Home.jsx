@@ -160,11 +160,17 @@ const Home = () => {
             if (hasFetchedRef.current) return;
             hasFetchedRef.current = true;
 
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                navigate('/logout');
+                return;
+            }
+
             try {
                 const response = await fetch(`${API_URL}/api/user/get-chat-contexts`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -173,24 +179,32 @@ const Home = () => {
                 if (data.success) {
                     setChatContexts(data.data);
                 } else {
-                    addToast("Đã xảy ra lỗi khi lấy danh sách chat contexts: " + data.message, 'error');
+                    if (data.message && !data.message.toLowerCase().includes('token') && !data.message.toLowerCase().includes('unauthorized')) {
+                        addToast("Đã xảy ra lỗi khi lấy danh sách chat contexts: " + data.message, 'error');
+                    }
                     navigate('/logout');
                 }
             } catch (error) {
-                addToast('Không thể kết nối đến server để lấy danh sách chat contexts', 'error');
+                navigate('/logout');
             }
         };
 
         fetchChatContexts();
-    }, []);
+    }, [navigate]);
 
     useEffect(() => {
         const fetchUserInfo = async () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                navigate('/logout');
+                return;
+            }
+
             try {
                 const response = await fetch(`${API_URL}/api/user/get-user-info`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -203,16 +217,21 @@ const Home = () => {
                         email: data.data.email,
                     });
                 } else {
-                    addToast("Đã xảy ra lỗi khi lấy thông tin người dùng: " + data.message, 'error');
+                    if (data.message && !data.message.toLowerCase().includes('token') &&
+                        !data.message.toLowerCase().includes('unauthorized') &&
+                        !data.message.toLowerCase().includes('object reference') &&
+                        !data.message.toLowerCase().includes('not set to an instance')) {
+                        addToast("Đã xảy ra lỗi khi lấy thông tin người dùng: " + data.message, 'error');
+                    }
                     navigate('/logout');
                 }
             } catch (error) {
-                addToast('Không thể kết nối đến server để lấy thông tin người dùng', 'error');
+                navigate('/logout');
             }
         };
 
         fetchUserInfo();
-    }, []);
+    }, [navigate]);
 
     useEffect(() => {
         const fetchNewContextId = async () => {
@@ -328,6 +347,52 @@ const Home = () => {
                         contextId: selectedChat,
                         chatTitle: "New Chat"
                     }, ...prevChats]);
+
+                    const currentModel = models.find(model => model.name === selectedModel);
+                    const modelValue = currentModel ? currentModel.value : 'nan';
+
+                    fetch(`${API_URL_GENAI}/v2/ai-gen`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prompt: `Giúp tôi đặt tên cho đoạn chat với tin nhắn đầu tiên là câu hỏi này: ${message}. Hãy chỉ đưa ra string tên chat và đừng nói gì thêm!`,
+                            model: modelValue
+                        })
+                    }).then(titleResponse => {
+                        if (titleResponse.ok) {
+                            return titleResponse.json();
+                        }
+                        throw new Error("Không thể lấy tên chat từ API");
+                    }).then(titleData => {
+                        if (titleData.success && titleData.text) {
+                            const chatTitle = titleData.text.trim();
+
+                            return fetch(`${API_URL}/api/user/change-title-chat`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    NewTitle: chatTitle,
+                                    ContextId: selectedChat
+                                })
+                            }).then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        setChatContexts(prevContexts => prevContexts.map(chat =>
+                                            chat.contextId === selectedChat
+                                                ? { ...chat, chatTitle: chatTitle }
+                                                : chat
+                                        ));
+                                    }
+                                });
+                        }
+                    }).catch(error => {
+                        console.error("Lỗi khi cập nhật tên chat:", error);
+                    });
                 }
             } catch (error) {
                 addToast("Lỗi kết nối khi thêm chat context mới: " + error.message, 'error');
@@ -466,7 +531,6 @@ const Home = () => {
                 setChatContexts(chatContexts.filter(chat => chat.contextId !== contextId));
                 if (selectedChat === contextId) {
                     setSelectedChat(null);
-                    setCurrentMessages([]);
                     try {
                         const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
                             method: 'GET',
@@ -479,6 +543,7 @@ const Home = () => {
                             const newContextData = await response.json();
                             if (newContextData.success) {
                                 setSelectedChat(newContextData.data);
+                                setCurrentMessages([]);
                             } else {
                                 addToast("Đã xảy ra lỗi khi lấy context ID mới: " + newContextData.message, 'error');
                             }
@@ -734,7 +799,8 @@ const Home = () => {
                                         <motion.button
                                             whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
                                             onClick={() => {
-                                                window.location.href = "/logout";
+                                                navigate('/logout');
+                                                setUserMenuOpen(false);
                                             }}
                                             className="flex items-center w-full px-3 py-2 text-left text-gray-700 hover:bg-gray-100 transition-colors duration-150"
                                         >
@@ -919,7 +985,6 @@ const Home = () => {
                                                     </svg>
                                                 </motion.button>
                                             </motion.div>
-                                            {/* Menu tùy chọn - đặt ngoài container có overflow */}
                                             <AnimatePresence>
                                                 {chatOptionsOpen === chat.contextId && (
                                                     <motion.div

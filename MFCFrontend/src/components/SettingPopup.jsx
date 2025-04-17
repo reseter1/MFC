@@ -109,6 +109,7 @@ const SettingPopup = ({ onClose, userData, setUserData }) => {
             const data = await response.json();
             if (data.success) {
                 addToast('Đã xóa tài khoản thành công!', 'success');
+                localStorage.removeItem('access_token');
                 navigate('/logout');
             } else {
                 addToast('Đã xảy ra lỗi khi xóa tài khoản: ' + data.message, 'error');

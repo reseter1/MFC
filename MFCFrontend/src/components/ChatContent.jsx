@@ -77,60 +77,69 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
   const messagesEndRef = useRef(null)
   const voiceSettings = useSelector(selectVoiceSettings)
   const [isLoadingTTS, setIsLoadingTTS] = React.useState({})
-  const [isLoadingMessages, setIsLoadingMessages] = useState(true)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isRenderingMessages, setIsRenderingMessages] = useState(false)
-  const prevContextIdRef = useRef(contextId)
+  const prevContextIdRef = useRef(null)
 
   useEffect(() => {
     const fetchMessages = async () => {
-      if (contextId !== prevContextIdRef.current || messages.length === 0) {
-        setIsLoadingMessages(true)
-        setIsRenderingMessages(true)
-        try {
-          const response = await fetch(`${API_URL_GENAI}/admin/get-messages`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              contextId: contextId,
-            }),
-          })
+      if (contextId && contextId !== "null") {
+        if (prevContextIdRef.current !== contextId) {
+          setIsLoadingMessages(true)
+          setIsRenderingMessages(true)
+          try {
+            const response = await fetch(`${API_URL_GENAI}/admin/get-messages`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                contextId: contextId,
+              }),
+            })
 
-          if (response.ok) {
-            const result = await response.json()
-            if (result.success) {
-              const formattedMessages = result.data.map((msg) => ({
-                id: msg.id,
-                sender: msg.role === "user" ? "user" : "bot",
-                content: msg.content,
-              }))
-              setMessages(formattedMessages)
-              setTimeout(() => {
-                setIsLoadingMessages(false)
+            if (response.ok) {
+              const result = await response.json()
+              if (result.success) {
+                const formattedMessages = result.data.map((msg) => ({
+                  id: msg.id,
+                  sender: msg.role === "user" ? "user" : "bot",
+                  content: msg.content,
+                }))
+                setMessages(formattedMessages)
                 setTimeout(() => {
-                  setIsRenderingMessages(false)
-                }, 100)
-              }, 300)
+                  setIsLoadingMessages(false)
+                  setTimeout(() => {
+                    setIsRenderingMessages(false)
+                  }, 100)
+                }, 300)
+              } else {
+                setMessages([])
+                setIsLoadingMessages(false)
+                setIsRenderingMessages(false)
+              }
+            } else {
+              setMessages([])
+              setIsLoadingMessages(false)
+              setIsRenderingMessages(false)
             }
+          } catch (error) {
+            addToast("Lỗi khi lấy tin nhắn: " + error.message, "error")
+            setMessages([])
+            setIsLoadingMessages(false)
+            setIsRenderingMessages(false)
           }
-        } catch (error) {
-          addToast("Lỗi khi lấy tin nhắn: " + error.message, "error")
-          setIsLoadingMessages(false)
-          setIsRenderingMessages(false)
+          prevContextIdRef.current = contextId
         }
-        prevContextIdRef.current = contextId
+      } else {
+        setMessages([])
+        setIsLoadingMessages(false)
+        setIsRenderingMessages(false)
       }
     }
 
-    if (contextId) {
-      fetchMessages()
-    } else {
-      setMessages([])
-      setIsLoadingMessages(false)
-      setIsRenderingMessages(false)
-    }
-  }, [contextId, setMessages, addToast, messages.length])
+    fetchMessages()
+  }, [contextId, setMessages, addToast])
 
   useEffect(() => {
     scrollToBottom()
@@ -174,7 +183,6 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
     }
   }
 
-  // Custom renderer for code blocks with syntax highlighting
   const components = {
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || "")
@@ -188,7 +196,6 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
         </code>
       )
     },
-    // Custom styling for other markdown elements
     p: ({ children }) => <p className="mb-2">{children}</p>,
     h1: ({ children }) => <h1 className="text-2xl font-bold my-3">{children}</h1>,
     h2: ({ children }) => <h2 className="text-xl font-bold my-2">{children}</h2>,

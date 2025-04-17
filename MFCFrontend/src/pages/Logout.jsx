@@ -14,15 +14,19 @@ export default function Logout() {
         const logout = async () => {
             try {
                 const token = localStorage.getItem('access_token');
-                await fetch(`${API_URL}/logout`, {
-                    method: "POST",
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+                if (token) {
+                    await fetch(`${API_URL}/logout`, {
+                        method: "POST",
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                }
             } catch (error) {
                 console.error(error);
             } finally {
+                // Xóa token khỏi localStorage và cập nhật trạng thái đăng nhập
+                localStorage.removeItem('access_token');
                 logoutUser();
             }
         };

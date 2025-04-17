@@ -1,17 +1,21 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { login, logout, selectLoggedIn, selectToken } from '../store/slices/authSlice';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export const useAuth = () => {
     const dispatch = useDispatch();
     const isLoggedIn = useSelector(selectLoggedIn);
     const token = useSelector(selectToken);
+    const [checkedToken, setCheckedToken] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('access_token');
         if (token) {
             dispatch(login({ token }));
+        } else {
+            dispatch(logout());
         }
+        setCheckedToken(true);
     }, [dispatch]);
 
     const loginUser = (token) => {
@@ -27,6 +31,7 @@ export const useAuth = () => {
     return {
         isLoggedIn,
         token,
+        checkedToken,
         loginUser,
         logoutUser,
     };
