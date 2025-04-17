@@ -79,6 +79,6 @@ jobs:
             export PATH=$PATH:/root/.nvm/versions/node/v20.19.0/bin
             which pm2
             pm2 stop 1
-            pm2 delete 1
+            pm2 delete mfcb
             cd /workspace/Project3
             pm2 start --name "mfcb" dotnet -- run --project ./MFCBackend.csproj
