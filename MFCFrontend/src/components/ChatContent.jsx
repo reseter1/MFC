@@ -14,6 +14,64 @@ import { useSelector } from 'react-redux'
 import { selectVoiceSettings } from '../store/slices/voiceSettingsSlice'
 import NewChat from "./NewChat"
 
+/* Thêm vào đầu file hoặc trong thẻ <style jsx global> nếu dùng Next.js */
+const shimmerStyle = `
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    background: #e0e0e0;
+  }
+  .shimmer-bg {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.3) 50%,rgba(255,255,255,0) 100%);
+    animation: shimmer-move 1.5s infinite;
+    z-index: 1;
+  }
+  @keyframes shimmer-move {
+    0% { transform: translateX(-100%);}
+    100% { transform: translateX(100%);}
+  }
+`
+
+const skeletonBubbleVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.12, duration: 0.5, type: "spring" }
+  })
+}
+
+function ChatSkeleton({ align = "left", index }) {
+  return (
+    <motion.div
+      custom={index}
+      variants={skeletonBubbleVariants}
+      initial="initial"
+      animate="animate"
+      className={`flex ${align === "right" ? "justify-end" : "justify-start"}`}
+    >
+      <div
+        className={`relative max-w-2xl p-4 rounded-lg mb-2
+          ${align === "right" ? "bg-gray-200" : "bg-gray-100"}
+          overflow-hidden w-[70%] min-h-[56px]`}
+      >
+        <div className="flex items-center mb-2">
+          <div className="h-4 w-20 bg-gray-300 rounded mr-2 shimmer" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-3/4 bg-gray-300 rounded shimmer" />
+          <div className="h-4 w-2/4 bg-gray-300 rounded shimmer" />
+          <div className="h-4 w-1/2 bg-gray-300 rounded shimmer" />
+        </div>
+        <div className="absolute inset-0 shimmer-bg" />
+      </div>
+    </motion.div>
+  )
+}
+
 const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse }) => {
   const { addToast } = useToast()
   const messagesEndRef = useRef(null)
@@ -163,17 +221,25 @@ const ChatContent = ({ contextId, messages, setMessages, isLoadingBotResponse })
 
   return (
     <>
+      <style>{shimmerStyle}</style>
       {isLoadingMessages ? (
         <div className="flex-1 flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-            className="text-center"
-          >
-            <div className="w-16 h-16 border-4 border-t-blue-500 border-b-blue-500 border-l-transparent border-r-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-lg text-gray-700">Đang tải tin nhắn...</p>
-          </motion.div>
+          <div className="w-full max-w-3xl mx-auto space-y-4 pb-16">
+            {[0, 1, 2].map((i) => (
+              <ChatSkeleton key={i} align={i % 2 === 0 ? "left" : "right"} index={i} />
+            ))}
+            <div className="flex justify-center mt-6">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.4 }}
+                className="text-center"
+              >
+                <div className="w-10 h-10 border-4 border-t-blue-500 border-b-blue-500 border-l-transparent border-r-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-base text-gray-500">Đang tải tin nhắn...</p>
+              </motion.div>
+            </div>
+          </div>
         </div>
       ) : messages.length === 0 && !isLoadingBotResponse ? (
         <NewChat />

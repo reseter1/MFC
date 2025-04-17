@@ -8,7 +8,6 @@ import { APP_NAME, APP_VERSION, API_URL, API_URL_GENAI } from "../data/constant"
 import ChatContent from "../components/ChatContent";
 import { useToast } from "../components/ToastProvider";
 
-// Thêm CSS cho hiệu ứng nhấp nháy khi chế độ tạm thời được bật
 const tempChatPulseKeyframes = `
 @keyframes tempChatPulse {
     0% {
@@ -57,6 +56,7 @@ const Home = () => {
     const chatItemRefs = useRef({});
     const prevTempChatEnabledRef = useRef(false);
     const fileInputRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const isValidContextId = (contextId) => {
         return contextId && contextId.length === 20 && /^[a-zA-Z0-9]+$/.test(contextId);
@@ -286,16 +286,13 @@ const Home = () => {
             }
         };
 
-        // Nếu trạng thái thay đổi (bật <-> tắt), tạo context ID mới
         if (prevTempChatEnabledRef.current !== tempChatEnabled) {
             fetchNewContextId();
         }
 
-        // Cập nhật giá trị trước đó để so sánh cho lần tiếp theo
         prevTempChatEnabledRef.current = tempChatEnabled;
     }, [tempChatEnabled]);
 
-    // Thêm style element cho keyframes
     useEffect(() => {
         const styleElement = document.createElement('style');
         styleElement.innerHTML = tempChatPulseKeyframes;
@@ -347,6 +344,13 @@ const Home = () => {
         setMessage("");
         setIsLoadingBotResponse(true);
 
+        setTimeout(() => {
+            const textarea = document.querySelector('textarea[placeholder="Hỏi bất kỳ điều gì"]');
+            if (textarea) {
+                textarea.style.height = 'auto';
+            }
+        }, 0);
+
         await new Promise(resolve => setTimeout(resolve, 500));
 
         try {
@@ -391,10 +395,12 @@ const Home = () => {
     };
 
     const handleChatOptionsClick = (contextId) => {
+        if (tempChatEnabled) return;
         setChatOptionsOpen(chatOptionsOpen === contextId ? null : contextId);
     };
 
     const handleRenameChat = (contextId) => {
+        if (tempChatEnabled) return;
         const chatToRename = chatContexts.find(chat => chat.contextId === contextId);
         if (chatToRename) {
             setIsRenamingChat(contextId);
@@ -444,6 +450,7 @@ const Home = () => {
     };
 
     const handleDeleteChat = async (contextId) => {
+        if (tempChatEnabled) return;
         try {
             const response = await fetch(`${API_URL}/api/user/delete-one-chat-context`, {
                 method: 'POST',
@@ -460,7 +467,6 @@ const Home = () => {
                 if (selectedChat === contextId) {
                     setSelectedChat(null);
                     setCurrentMessages([]);
-                    // Tạo context ID mới sau khi xóa
                     try {
                         const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
                             method: 'GET',
@@ -510,7 +516,9 @@ const Home = () => {
     };
 
     const handleFileUpload = async (e) => {
-        const selectedFiles = Array.from(e.target.files);
+        setIsDragging(false);
+
+        const selectedFiles = Array.from(e.target.files || e.dataTransfer?.files || []);
         if (!selectedFiles.length) return;
 
         if (!selectedChat) {
@@ -569,7 +577,70 @@ const Home = () => {
         }
 
         setIsLoadingBotResponse(false);
-        e.target.value = '';
+        if (e.target.value) e.target.value = '';
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleFileUpload(e);
+    };
+
+    const handleChatSelection = (contextId) => {
+        if (tempChatEnabled) {
+            addToast("Không thể chuyển đổi cuộc trò chuyện khi đang ở chế độ tạm thời", "warning");
+            return;
+        }
+        setSelectedChat(contextId);
+    };
+
+    const handleNewChat = async () => {
+        if (tempChatEnabled) {
+            addToast("Không thể tạo cuộc trò chuyện mới khi đang ở chế độ tạm thời", "warning");
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setSelectedChat(data.data);
+                    setCurrentMessages([]);
+                } else {
+                    addToast("Đã xảy ra lỗi khi lấy context ID mới: " + data.message, 'error');
+                }
+            } else {
+                const errorData = await response.json();
+                addToast("Đã xảy ra lỗi khi lấy context ID mới: " + errorData.message, 'error');
+            }
+        } catch (error) {
+            addToast("Lỗi kết nối khi lấy context ID mới: " + error.message, 'error');
+        }
     };
 
     return (
@@ -752,32 +823,9 @@ const Home = () => {
                             <motion.button
                                 whileHover={{ filter: "brightness(0.98)" }}
                                 whileTap={{ filter: "brightness(0.95)" }}
-                                className="mt-2 w-full flex items-center justify-start px-3 py-1.5 bg-white rounded-md hover:bg-gray-50 transition-colors duration-200 border border-gray-200 text-sm"
-                                onClick={async () => {
-                                    try {
-                                        const response = await fetch(`${API_URL_GENAI}/admin/get-new-context-id`, {
-                                            method: 'GET',
-                                            headers: {
-                                                'Content-Type': 'application/json'
-                                            }
-                                        });
-
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            if (data.success) {
-                                                setSelectedChat(data.data);
-                                                setCurrentMessages([]);
-                                            } else {
-                                                addToast("Đã xảy ra lỗi khi lấy context ID mới: " + data.message, 'error');
-                                            }
-                                        } else {
-                                            const errorData = await response.json();
-                                            addToast("Đã xảy ra lỗi khi lấy context ID mới: " + errorData.message, 'error');
-                                        }
-                                    } catch (error) {
-                                        addToast("Lỗi kết nối khi lấy context ID mới: " + error.message, 'error');
-                                    }
-                                }}
+                                className={`mt-2 w-full flex items-center justify-start px-3 py-1.5 bg-white rounded-md hover:bg-gray-50 transition-colors duration-200 border border-gray-200 text-sm ${tempChatEnabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                                onClick={handleNewChat}
+                                disabled={tempChatEnabled}
                             >
                                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                                 <span>Cuộc trò chuyện mới</span>
@@ -833,8 +881,9 @@ const Home = () => {
                                                     initial={{ opacity: 0, x: -20 }}
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                                                    className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === chat.contextId ? "bg-gray-300" : "bg-transparent hover:bg-gray-200"}`}
-                                                    onClick={() => setSelectedChat(chat.contextId)}
+                                                    className={`w-full text-left px-3 py-1.5 rounded-md transition-colors duration-150 text-sm ${selectedChat === chat.contextId ? "bg-gray-300" : "bg-transparent hover:bg-gray-200"} ${tempChatEnabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                    onClick={() => handleChatSelection(chat.contextId)}
+                                                    disabled={tempChatEnabled}
                                                 >
                                                     <span className="truncate block pr-6" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chat.chatTitle}</span>
                                                 </motion.button>
@@ -860,6 +909,8 @@ const Home = () => {
                                                         e.stopPropagation();
                                                         handleChatOptionsClick(chat.contextId);
                                                     }}
+                                                    disabled={tempChatEnabled}
+                                                    style={{ opacity: tempChatEnabled ? 0.4 : 1, cursor: tempChatEnabled ? 'not-allowed' : 'pointer' }}
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                         <circle cx="12" cy="12" r="1"></circle>
@@ -886,6 +937,8 @@ const Home = () => {
                                                             whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
                                                             onClick={() => handleRenameChat(chat.contextId)}
                                                             className="w-full text-left px-3 py-2 hover:bg-gray-100 transition-colors duration-150 text-sm"
+                                                            disabled={tempChatEnabled}
+                                                            style={{ opacity: tempChatEnabled ? 0.4 : 1, cursor: tempChatEnabled ? 'not-allowed' : 'pointer' }}
                                                         >
                                                             Đổi tên
                                                         </motion.button>
@@ -893,6 +946,8 @@ const Home = () => {
                                                             whileHover={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
                                                             onClick={() => handleDeleteChat(chat.contextId)}
                                                             className="w-full text-left px-3 py-2 text-red-600 hover:bg-gray-100 transition-colors duration-150 text-sm"
+                                                            disabled={tempChatEnabled}
+                                                            style={{ opacity: tempChatEnabled ? 0.4 : 1, cursor: tempChatEnabled ? 'not-allowed' : 'pointer' }}
                                                         >
                                                             Xóa
                                                         </motion.button>
@@ -944,8 +999,21 @@ const Home = () => {
                         flex-1 flex flex-col w-full bg-white
                         transition-all duration-300 ease-in-out
                         ${sidebarOpen && !isMobile ? "md:ml-64" : "ml-0"}
+                        ${isDragging ? "bg-blue-50" : ""}
+                        relative
                     `}
+                    onDragOver={handleDragOver}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                 >
+                    {isDragging && (
+                        <div className="absolute inset-0 bg-blue-100 bg-opacity-70 flex items-center justify-center z-50 border-2 border-blue-300 border-dashed rounded-lg pointer-events-none">
+                            <div className="text-blue-500 text-xl font-semibold">
+                                Thả file để tải lên
+                            </div>
+                        </div>
+                    )}
                     <ChatContent
                         contextId={selectedChat}
                         messages={currentMessages}

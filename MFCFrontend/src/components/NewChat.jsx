@@ -6,25 +6,30 @@ const NewChat = () => {
     const greetings = [
         "Tôi có thể giúp gì cho bạn?",
         "Ngày hôm nay của bạn thế nào?",
-        "Chào bạn, chúc một ngày tốt lành!"
+        "Chào bạn, chúc một ngày tốt lành!",
+        "Hãy làm việc năng suất hơn vào ngày hôm nay nhé!",
+        "Tôi đã sẵn sàng để giúp bạn bất cứ điều gì bạn cần!"
     ];
 
     const notes = [
         `<b>${APP_NAME}</b> có thể mắc lỗi!`,
         `<b>${APP_NAME}</b>, một sản phẩm của Reseter (<b>${PROVIDER_URL}</b>)`,
-        `Hãy nhớ rằng <b>${APP_NAME}</b> đang trong giai đoạn thử nghiệm!`
+        `Hãy nhớ rằng <b>${APP_NAME}</b> đang trong giai đoạn thử nghiệm!`,
+        `Bạn có biết rằng <b>${APP_NAME}</b> được tạo ra bởi <b>Reseter - Nguyễn Hữu Tài</b> không?`
     ];
 
     const [currentGreetingIndex, setCurrentGreetingIndex] = useState(0);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
 
+    const getRandomIndex = (length) => Math.floor(Math.random() * length);
+
     useEffect(() => {
         const greetingInterval = setInterval(() => {
-            setCurrentGreetingIndex((prevIndex) => (prevIndex + 1) % greetings.length);
-        }, 10000); 
-        const noteInterval = setInterval(() => {
-            setCurrentNoteIndex((prevIndex) => (prevIndex + 1) % notes.length);
+            setCurrentGreetingIndex(getRandomIndex(greetings.length));
         }, 5000); 
+        const noteInterval = setInterval(() => {
+            setCurrentNoteIndex(getRandomIndex(notes.length));
+        }, 3000); 
 
         return () => {
             clearInterval(greetingInterval);
@@ -76,4 +81,4 @@ const NewChat = () => {
     );
 };
 
-export default NewChat; 
+export default NewChat;
