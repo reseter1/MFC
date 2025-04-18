@@ -4,7 +4,7 @@ import { APP_NAME, PROVIDER_URL } from '../data/constant';
 
 const NewChat = () => {
     const greetings = [
-        "Xin chào, tôi là <b>${APP_NAME}</b>, tôi có thể giúp gì cho bạn?",
+        `Xin chào, tôi là <b>${APP_NAME}</b>, tôi có thể giúp gì cho bạn?`,
         "Ngày hôm nay thật đẹp phải không, bạn có thể nói gì về ngày hôm nay?",
         "Thật vui khi được gặp bạn ở đây, điều gì khiến bạn thắc mắc?",
         "Bạn thật chăm chỉ học tập, vấn đề hiện tại của bạn là gì?",
@@ -14,7 +14,7 @@ const NewChat = () => {
     const notes = [
         `Bật mí cho bạn, tôi ở đây vì người lập trình ra tôi đang thất nghiệp và anh ta quá rảnh rỗi nên đã tạo ra tôi!`,
         `<b>${APP_NAME}</b> có thể mắc lỗi!`,
-        `<b>${APP_NAME}</b> đang trong giai đoạn thử nghiệm! Đừng khắc khe với tối quá nhé!`,
+        `<b>${APP_NAME}</b> đang trong giai đoạn thử nghiệm! Đừng khắc khe với tôi quá nhé!`,
         `Bạn hãy luôn cố gắng hết mình cho đến khi gặp một người khác, bạn không cần giới thiệu bản thân là ai cả!`,
         `${APP_NAME} được tạo ra bởi <b>Reseter - Nguyễn Hữu Tài</b>!`,
         `Hiện tại người tạo ra tôi vẫn đang thất nghiệp, nên nếu có job thì bạn có thể liên hệ anh ta qua địa chỉ email <b>nguyenhuutai@reseter.space</b> nhé! Hihi!`
