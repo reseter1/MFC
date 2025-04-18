@@ -29,7 +29,7 @@ const NewChat = () => {
         }, 5000); 
         const noteInterval = setInterval(() => {
             setCurrentNoteIndex(getRandomIndex(notes.length));
-        }, 3000); 
+        }, 4000); 
 
         return () => {
             clearInterval(greetingInterval);
