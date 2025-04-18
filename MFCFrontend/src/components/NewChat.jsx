@@ -4,7 +4,7 @@ import { APP_NAME, PROVIDER_URL } from '../data/constant';
 
 const NewChat = () => {
     const greetings = [
-        `Xin chào, tôi là <b>${APP_NAME}</b>, tôi có thể giúp gì cho bạn?`,
+        `Xin chào, tôi là ${APP_NAME}, tôi có thể giúp gì cho bạn?`,
         "Ngày hôm nay thật đẹp phải không, bạn có thể nói gì về ngày hôm nay?",
         "Thật vui khi được gặp bạn ở đây, điều gì khiến bạn thắc mắc?",
         "Bạn thật chăm chỉ học tập, vấn đề hiện tại của bạn là gì?",
