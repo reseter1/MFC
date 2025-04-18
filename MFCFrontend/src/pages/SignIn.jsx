@@ -42,7 +42,7 @@ export default function SignIn() {
             if (data.success) {
                 loginUser(data.token)
                 addToast("Đăng nhập thành công", "success")
-                navigate("/")
+                navigate("/chat")
             } else {
                 addToast(data.message, "error");
             }
@@ -74,7 +74,7 @@ export default function SignIn() {
             if (data.success) {
                 loginUser(data.token)
                 addToast("Đăng nhập thành công", "success")
-                navigate("/")
+                navigate("/chat")
             } else {
                 addToast(data.message, "error")
             }

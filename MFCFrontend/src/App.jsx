@@ -26,7 +26,7 @@ function App() {
           <Route path="/activate" element={<RedirectHome children={<ActivationAccount />} />} />
           <Route path="/logout" element={<Logout />} />
           <Route path="*" element={<NotFound />} />
-          <Route path="/" element={
+          <Route path="/chat" element={
             <ProtectedRoute>
               <Home />
             </ProtectedRoute>

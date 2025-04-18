@@ -59,7 +59,7 @@ export default function MessagePage({ message = "Thông báo mặc định" }) {
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => navigate("/")}
+                        onClick={() => navigate("/chat")}
                         className="flex w-full items-center justify-center rounded-md bg-black py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-200"
                     >
                         Quay lại trang chủ
