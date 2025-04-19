@@ -7,6 +7,7 @@ import SettingPopup from "../components/SettingPopup";
 import { APP_NAME, APP_VERSION, API_URL, API_URL_GENAI } from "../data/constant";
 import ChatContent from "../components/ChatContent";
 import { useToast } from "../components/ToastProvider";
+import { useLoading } from "../contexts/LoadingContext";
 
 const tempChatPulseKeyframes = `
 @keyframes tempChatPulse {
@@ -40,6 +41,7 @@ const Home = () => {
     const [isLoadingBotResponse, setIsLoadingBotResponse] = useState(false);
     const [files, setFiles] = useState([]);
     const { addToast } = useToast();
+    const { startLoading, stopLoading } = useLoading();
     const navigate = useNavigate();
     const userMenuRef = useRef(null);
     const modelSelectorRef = useRef(null);
@@ -166,6 +168,7 @@ const Home = () => {
                 return;
             }
 
+            startLoading("Đang tải danh sách cuộc trò chuyện...");
             try {
                 const response = await fetch(`${API_URL}/api/user/get-chat-contexts`, {
                     method: 'GET',
@@ -186,6 +189,8 @@ const Home = () => {
                 }
             } catch (error) {
                 navigate('/logout');
+            } finally {
+                stopLoading();
             }
         };
 
@@ -200,6 +205,7 @@ const Home = () => {
                 return;
             }
 
+            startLoading("Đang tải thông tin người dùng...");
             try {
                 const response = await fetch(`${API_URL}/api/user/get-user-info`, {
                     method: 'GET',
@@ -227,6 +233,8 @@ const Home = () => {
                 }
             } catch (error) {
                 navigate('/logout');
+            } finally {
+                stopLoading();
             }
         };
 
@@ -326,6 +334,7 @@ const Home = () => {
         if (message.trim() === "") return;
 
         if (currentMessages.length === 0 && !tempChatEnabled) {
+            startLoading("Đang tạo cuộc trò chuyện mới...");
             try {
                 const response = await fetch(`${API_URL}/api/user/add-new-chat-context`, {
                     method: 'POST',
@@ -396,6 +405,8 @@ const Home = () => {
                 }
             } catch (error) {
                 addToast("Lỗi kết nối khi thêm chat context mới: " + error.message, 'error');
+            } finally {
+                stopLoading();
             }
         }
 
@@ -480,6 +491,7 @@ const Home = () => {
             return;
         }
 
+        startLoading("Đang đổi tên cuộc trò chuyện...");
         try {
             const response = await fetch(`${API_URL}/api/user/change-title-chat`, {
                 method: 'POST',
@@ -504,6 +516,7 @@ const Home = () => {
         } catch (error) {
             addToast("Có lỗi xảy ra khi đổi tên chat: " + error.message, "error");
         } finally {
+            stopLoading();
             setIsRenamingChat(null);
             setNewChatTitle("");
         }
@@ -516,6 +529,7 @@ const Home = () => {
 
     const handleDeleteChat = async (contextId) => {
         if (tempChatEnabled) return;
+        startLoading("Đang xóa cuộc trò chuyện...");
         try {
             const response = await fetch(`${API_URL}/api/user/delete-one-chat-context`, {
                 method: 'POST',
@@ -562,6 +576,7 @@ const Home = () => {
         } catch (error) {
             addToast("Có lỗi xảy ra khi xóa đoạn chat: " + error.message, "error");
         } finally {
+            stopLoading();
             setChatOptionsOpen(null);
         }
     };
