@@ -1,4 +1,4 @@
-name: Deploy Workflow
+name: Deploy to VPS
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
           cd MFCFrontend
           npm run build
 
-      - name: Copy to server
+      - name: Copy to VPS
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -41,15 +41,24 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
           source: "./MFCFrontend/dist/*"
-          target: "/workspace/Project2"
+          target: "/var/www/MFCClient"
           rm: false
           overwrite: true
-          strip_components: 1
+          strip_components: 2
 
-      - name: Setup dotnet 8.0.407
+      - name: Restart Apache
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            systemctl restart apache2
+
+      - name: Setup dotnet 8.0.408
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.407
+          dotnet-version: 8.0.408
 
       - name: Restore dependencies
         run: |
@@ -59,12 +68,12 @@ jobs:
       - name: Copy to server
         uses: appleboy/scp-action@master
         with:
-          host: ${{ secrets.SSH_HOST }}
+          host: ${{ secrets.SSH_HOST_2 }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
           source: "./MFCBackend/*"
-          target: "/workspace/Project3"
+          target: "/root/Unify/MFCBackend"
           rm: false
           overwrite: true
           strip_components: 1
@@ -72,12 +81,15 @@ jobs:
       - name: Restart backend
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }}
+          host: ${{ secrets.SSH_HOST_2 }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             export PATH=$PATH:/root/.nvm/versions/node/v20.19.0/bin
-            which pm2
             pm2 delete mfcb
-            cd /workspace/Project3
+            cd /root/Unify/MFCBackend
             pm2 start --name "mfcb" dotnet -- run --project ./MFCBackend.csproj
+
+      - name: Finish
+        run: |
+          echo "Deployment completed successfully"
