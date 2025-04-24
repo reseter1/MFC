@@ -1251,10 +1251,10 @@ export default function Landing() {
                             © {new Date().getFullYear()} {APP_NAME}. Bản quyền thuộc về Reseter.
                             <div className="mt-1">
                                 <a
-                                    href="mailto:nguyenhuutai@reseter.space"
+                                    href="mailto:nguyenhuutai.reseter@gmail.com"
                                     className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
                                 >
-                                    nguyenhuutai@reseter.space
+                                    nguyenhuutai.reseter@gmail.com
                                 </a>
                             </div>
                         </div>
