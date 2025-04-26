@@ -17,7 +17,7 @@ const NewChat = () => {
         `<b>${APP_NAME}</b> đang trong giai đoạn thử nghiệm! Đừng khắc khe với tôi quá nhé!`,
         `Bạn hãy luôn cố gắng hết mình cho đến khi gặp một người khác, bạn không cần giới thiệu bản thân là ai cả!`,
         `${APP_NAME} được tạo ra bởi <b>Reseter - Nguyễn Hữu Tài</b>!`,
-        `Hiện tại người tạo ra tôi vẫn đang thất nghiệp, nên nếu có job thì bạn có thể liên hệ anh ta qua địa chỉ email <b>nguyenhuutai@reseter.space</b> nhé! Hihi!`
+        `Hiện tại người tạo ra tôi vẫn đang thất nghiệp, nên nếu có job thì bạn có thể liên hệ anh ta qua địa chỉ email <b>nguyenhuutai.reseter@gmail.com</b> nhé! Hihi!`
     ];
 
     const [currentGreetingIndex, setCurrentGreetingIndex] = useState(0);
